@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ai-usage",
   "description": "监控已配置模型的用量（GLM/DeepSeek/Codex CLI），支持正向/逆向显示与按模型开关",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "extensions": {
     "xdb-ai": {},
     "io.github.vran-dev.xdb": {

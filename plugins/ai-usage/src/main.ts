@@ -10,7 +10,7 @@ import {
   probeCodex,
 } from './fetchers';
 import { classifyConnections, codexTarget, type UsageTarget } from './providers';
-import { isEnabled, loadSettings, type PluginSettings } from './settings';
+import { isEnabled, loadSettings, type FooterPosition, type PluginSettings } from './settings';
 import { AiUsageSettingsView } from './settingsView';
 import { UsageStore, type ProviderStatus } from './store';
 import { UsageStatusView } from './statusView';
@@ -27,6 +27,10 @@ interface ComposerFooterService {
 }
 
 const STATUS_ITEM_ID = 'ai-usage';
+
+function footerOrderOf(position: FooterPosition): number {
+  return position === 'left' ? -2000 : position === 'right' ? 2000 : 10;
+}
 
 function failureMessage(error: unknown, target: UsageTarget): string {
   const status = (error as { status?: number } | null)?.status;
@@ -103,26 +107,11 @@ export default class AiUsagePlugin extends Plugin {
     const usageStore = this.usageStore;
     usageStore.start();
 
-    // 设置变化：通知界面重渲染；开关/命令路径变化时立即重查
-    let lastReaction = { disabled: '', codexCommandPath: '' };
-    const syncReaction = (): void => {
-      const settings = settingsStore.getSettings();
-      usageStore.notify();
-      const next = {
-        disabled: [...settings.disabled].sort().join(','),
-        codexCommandPath: settings.codexCommandPath,
-      };
-      if (next.disabled !== lastReaction.disabled || next.codexCommandPath !== lastReaction.codexCommandPath) {
-        lastReaction = next;
-        void usageStore.refresh();
-      }
-    };
-    syncReaction();
-    settingsStore.subscribe(syncReaction);
-
-    // Composer 底部状态项（可选服务）
+    // Composer 底部状态项（可选服务；停靠位置由设置决定，变更时重注册）
     const footer = api.getService('composerViewService') as ComposerFooterService | undefined;
-    if (footer) {
+    const registerFooter = (position: FooterPosition): void => {
+      if (!footer) return;
+      footer.unregisterFooterItem(STATUS_ITEM_ID);
       const renderer = createReactView(() =>
         createElement(UsageStatusView, {
           store: usageStore,
@@ -132,10 +121,34 @@ export default class AiUsagePlugin extends Plugin {
           },
         }),
       );
-      const item: ComposerFooterItem = { id: STATUS_ITEM_ID, order: 10, renderer };
+      const item: ComposerFooterItem = { id: STATUS_ITEM_ID, order: footerOrderOf(position), renderer };
       footer.registerFooterItem(item);
-      this.resources.push(() => footer.unregisterFooterItem(item.id));
+    };
+    if (footer) {
+      registerFooter(settingsStore.getSettings().footerPosition);
+      this.resources.push(() => footer.unregisterFooterItem(STATUS_ITEM_ID));
     }
+
+    // 设置变化：通知界面重渲染；开关/命令路径变化立即重查，位置变化重注册
+    let lastReaction = { disabled: '', codexCommandPath: '', footerPosition: '' };
+    const syncReaction = (): void => {
+      const settings = settingsStore.getSettings();
+      usageStore.notify();
+      const next = {
+        disabled: [...settings.disabled].sort().join(','),
+        codexCommandPath: settings.codexCommandPath,
+        footerPosition: settings.footerPosition,
+      };
+      if (next.disabled !== lastReaction.disabled || next.codexCommandPath !== lastReaction.codexCommandPath) {
+        void usageStore.refresh();
+      }
+      if (next.footerPosition !== lastReaction.footerPosition) {
+        registerFooter(settings.footerPosition);
+      }
+      lastReaction = next;
+    };
+    syncReaction();
+    settingsStore.subscribe(syncReaction);
 
     const getTargetsRef = (): readonly UsageTarget[] => getTargets();
     const Form = createReactView((input: {

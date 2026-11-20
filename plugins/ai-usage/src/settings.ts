@@ -1,8 +1,13 @@
 export type DisplayMode = 'used' | 'remaining';
 
+/** 状态项在 Composer 底部的停靠位置 */
+export type FooterPosition = 'left' | 'center' | 'right';
+
 export interface PluginSettings {
   /** 正向（已用）或逆向（剩余）显示 */
   displayMode: DisplayMode;
+  /** 底部停靠位置 */
+  footerPosition: FooterPosition;
   /** 轮询间隔（分钟，1..60） */
   pollMinutes: number;
   /** codex CLI 命令路径；空 = codex */
@@ -13,6 +18,7 @@ export interface PluginSettings {
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   displayMode: 'used',
+  footerPosition: 'center',
   pollMinutes: 5,
   codexCommandPath: '',
   disabled: [],
@@ -33,6 +39,10 @@ export function loadSettings(raw: unknown): PluginSettings {
   const source = raw != null && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return {
     displayMode: source.displayMode === 'remaining' ? 'remaining' : 'used',
+    footerPosition:
+      source.footerPosition === 'left' || source.footerPosition === 'right'
+        ? source.footerPosition
+        : 'center',
     pollMinutes: asNumber(source.pollMinutes, DEFAULT_SETTINGS.pollMinutes, 1, 60),
     codexCommandPath: typeof source.codexCommandPath === 'string' ? source.codexCommandPath.trim() : '',
     disabled: asStringArray(source.disabled),

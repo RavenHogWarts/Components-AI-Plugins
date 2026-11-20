@@ -44,7 +44,25 @@ export function AiUsageSettingsView(props: AiUsageViewProps) {
           <option value="used">正向（显示已用）</option>
           <option value="remaining">逆向（显示剩余）</option>
         </SettingSelect>
-        <SettingText
+        <SettingSelect
+          label="底部显示位置"
+          description="状态项在 Composer 底部的停靠位置：左侧在 Agent 选择器之前，右侧在官方用量项之后"
+          value={settings.footerPosition}
+          onChange={(event) =>
+            apply({
+              footerPosition:
+                event.currentTarget.value === 'left'
+                  ? 'left'
+                  : event.currentTarget.value === 'right'
+                    ? 'right'
+                    : 'center',
+            })
+          }
+        >
+          <option value="left">左侧</option>
+          <option value="center">中间（默认）</option>
+          <option value="right">右侧</option>
+        </SettingSelect>        <SettingText
           label="轮询间隔（分钟）"
           description="自动刷新用量的时间间隔（1-60）"
           type="number"

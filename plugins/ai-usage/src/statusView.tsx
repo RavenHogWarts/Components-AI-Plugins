@@ -1,15 +1,16 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { SettingsStore as SettingsStoreT } from 'ai-plugin-kit';
-import { Button } from 'ai-plugin-kit';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+import { Button, type SettingsStore } from 'ai-plugin-kit';
 import type { PluginSettings } from './settings';
-import type { UsageStore } from './store';
-import type { ProviderStatus } from './store';
+import type { ProviderStatus, UsageStore } from './store';
 
 export interface StatusViewProps {
   store: UsageStore;
-  settingsStore: SettingsStoreT<PluginSettings>;
+  settingsStore: SettingsStore<PluginSettings>;
   onManualRefresh: () => void;
 }
+
+const POPOVER_WIDTH = 320;
 
 function formatPercent(value: number): string {
   return `${Math.round(value)}%`;
@@ -43,16 +44,26 @@ function shortText(status: ProviderStatus, mode: PluginSettings['displayMode']):
   return '—';
 }
 
-function WindowLine(props: { label: string; usedPercent?: number; used?: number; limit?: number; resetsAt?: number; mode: PluginSettings['displayMode'] }) {
+function WindowLine(props: {
+  label: string;
+  usedPercent?: number;
+  used?: number;
+  limit?: number;
+  resetsAt?: number;
+  mode: PluginSettings['displayMode'];
+}) {
   const { label, usedPercent, used, limit, resetsAt, mode } = props;
   const parts: string[] = [];
   if (usedPercent != null) {
-    parts.push(mode === 'used' ? `已用 ${formatPercent(usedPercent)}` : `剩余 ${formatPercent(100 - usedPercent)}`);
+    parts.push(
+      mode === 'used' ? `已用 ${formatPercent(usedPercent)}` : `剩余 ${formatPercent(100 - usedPercent)}`,
+    );
   }
   const usedText = formatCount(used);
   const limitText = formatCount(limit);
   if (usedText && limitText) {
-    parts.push(mode === 'used' ? `${usedText}/${limitText}` : `${formatCount((limit ?? 0) - (used ?? 0))}/${limitText}`);
+    const remainingText = formatCount((limit ?? 0) - (used ?? 0));
+    parts.push(mode === 'used' ? `${usedText}/${limitText}` : `${remainingText}/${limitText}`);
   }
   if (resetsAt) parts.push(`重置 ${formatTime(resetsAt)}`);
   return (
@@ -66,11 +77,13 @@ function WindowLine(props: { label: string; usedPercent?: number; used?: number;
 function ProviderSection(props: { status: ProviderStatus; mode: PluginSettings['displayMode'] }) {
   const { status, mode } = props;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontWeight: 600 }}>
         <span>
           {status.title}
-          {status.result?.type === 'ok' && status.result.reading.plan ? ` · ${status.result.reading.plan}` : ''}
+          {status.result?.type === 'ok' && status.result.reading.plan
+            ? ` · ${status.result.reading.plan}`
+            : ''}
         </span>
       </div>
       {status.result?.type === 'error' ? (
@@ -101,16 +114,39 @@ export function UsageStatusView(props: StatusViewProps) {
   const snapshot = useSyncExternalStore(props.store.subscribe, props.store.getSnapshot);
   const settings = props.settingsStore.getSettings();
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
-    const close = (event: MouseEvent): void => {
+    const syncRect = (): void => {
+      if (buttonRef.current) setRect(buttonRef.current.getBoundingClientRect());
+    };
+    syncRect();
+    window.addEventListener('resize', syncRect);
+    return () => window.removeEventListener('resize', syncRect);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent): void => {
       const target = event.target as HTMLElement | null;
-      if (target != null && target.closest('[data-ai-usage-root]') != null) return;
+      if (target == null) return;
+      if (target.closest('[data-ai-usage-root]') != null) return;
+      if (target.closest('[data-ai-usage-popover]') != null) return;
       setOpen(false);
     };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('click', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('click', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [open]);
 
   const summary = snapshot.entries
@@ -120,12 +156,15 @@ export function UsageStatusView(props: StatusViewProps) {
     })
     .join(' · ');
 
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : POPOVER_WIDTH + 16;
+  const popoverLeft =
+    rect != null ? Math.min(Math.max(8, rect.right - POPOVER_WIDTH), Math.max(8, viewportWidth - POPOVER_WIDTH - 8)) : 8;
+  const popoverTop = rect != null ? Math.max(8, rect.top - 8) : 8;
+
   return (
-    <div
-      data-ai-usage-root
-      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '6px', fontVariantNumeric: 'tabular-nums' }}
-    >
+    <div data-ai-usage-root style={{ display: 'inline-flex', alignItems: 'center', fontVariantNumeric: 'tabular-nums' }}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         style={{
@@ -140,39 +179,56 @@ export function UsageStatusView(props: StatusViewProps) {
         {snapshot.refreshing ? '⟳ ' : ''}
         {summary.length > 0 ? summary : 'AI 用量'}
       </button>
-      {open ? (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 6px)',
-            right: 0,
-            zIndex: 50,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            padding: '12px 14px',
-            minWidth: '280px',
-            borderRadius: '10px',
-            border: '1px solid var(--background-modifier-border, #ccc)',
-            background: 'var(--background-primary, #fff)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-            fontSize: '12px',
-          }}
-        >
-          {snapshot.entries.map((status) => (
-            <ProviderSection key={status.key} status={status} mode={settings.displayMode} />
-          ))}
-          {snapshot.entries.length === 0 ? <div style={{ opacity: 0.7 }}>暂无已启用的用量来源</div> : null}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--background-modifier-border, #eee)', paddingTop: '8px' }}>
-            <span style={{ opacity: 0.6 }}>
-              {snapshot.fetchedAt > 0 ? `更新于 ${formatTime(snapshot.fetchedAt)}` : '尚未更新'}
-            </span>
-            <Button size="sm" variant="ghost" disabled={snapshot.refreshing} onClick={props.onManualRefresh}>
-              刷新
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div
+              data-ai-usage-popover
+              style={{
+                position: 'fixed',
+                left: `${popoverLeft}px`,
+                top: `${popoverTop}px`,
+                width: `${POPOVER_WIDTH}px`,
+                transform: 'translateY(-100%)',
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: '1px solid var(--background-modifier-border, #ccc)',
+                background: 'var(--background-primary, #fff)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                fontSize: '12px',
+                color: 'var(--text-normal, inherit)',
+              }}
+            >
+              {snapshot.entries.map((status) => (
+                <ProviderSection key={status.key} status={status} mode={settings.displayMode} />
+              ))}
+              {snapshot.entries.length === 0 ? (
+                <div style={{ opacity: 0.7 }}>暂无已启用的用量来源</div>
+              ) : null}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderTop: '1px solid var(--background-modifier-border, #eee)',
+                  paddingTop: '8px',
+                }}
+              >
+                <span style={{ opacity: 0.6 }}>
+                  {snapshot.fetchedAt > 0 ? `更新于 ${formatTime(snapshot.fetchedAt)}` : '尚未更新'}
+                </span>
+                <Button size="sm" variant="ghost" disabled={snapshot.refreshing} onClick={props.onManualRefresh}>
+                  刷新
+                </Button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
