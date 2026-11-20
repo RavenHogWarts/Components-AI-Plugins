@@ -268,7 +268,15 @@ export const SettingTextarea = forwardRef<HTMLTextAreaElement, FieldProps & Reac
 
 export const Button = forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'solid' | 'outline' | 'ghost'; size?: SettingsSize }
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: 'solid' | 'outline' | 'ghost';
+    size?: SettingsSize;
+    /** 与应用原生按钮一致的 data 属性 */
+    'data-color'?: string;
+    'data-shape'?: string;
+    'data-slot'?: string;
+    'data-state'?: string;
+  }
 >(function Button(props, ref) {
   const { variant = 'solid', size, className, type = 'button', ...rest } = props;
   return (
