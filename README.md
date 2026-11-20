@@ -45,3 +45,15 @@ pnpm --filter live-session-title watch      # 监听变更：自动构建并部�
 ## Git 提交约定
 
 使用 Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`），完成一个逻辑单元即时本地提交。
+## 验证记录（2026-11-20，应用内实测）
+
+| 检查项 | 结果 |
+| --- | --- |
+| 加载（refresh + setEnabled） | loaded，无错误 |
+| 标题自动更新（新会话，话题：秦始皇统一六国） | 「标题插件功能测试」→「秦始皇统一六国的历史事件与意义」 |
+| 排除会话 ID（writeData + reload 后发新话题） | 标题保持不变 |
+| 禁用卸载（setEnabled false，状态 unloaded） | 新消息完成后标题不再变化，订阅已释放 |
+| 重新启用 | 标题恢复更新，随最新话题变为「手冲咖啡水温对风味的影响」 |
+| 设置持久化 | data.json 读写 + 重载后按最新设置运行 |
+
+未覆盖：设置界面（Settings View）未做视觉验证，仅验证了其背后的数据读写与加载路径。
