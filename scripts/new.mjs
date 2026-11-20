@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // 用法: pnpm new <name> [显示名] [描述]
 // 从 templates/plugin 生成 plugins/<name>，替换 @NAME@/@DISPLAY@/@DESCRIPTION@/@PASCAL@
@@ -9,7 +10,7 @@ if (!name || !/^[a-z][a-z0-9-]*$/.test(name)) {
   process.exit(1);
 }
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const root = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const templateDir = path.join(root, 'templates', 'plugin');
 const targetDir = path.join(root, 'plugins', name);
 if (fs.existsSync(targetDir)) {
