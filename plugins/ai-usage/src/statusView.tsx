@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { RefreshCw, Sparkles, Terminal, Wallet } from 'lucide-react';
-import { Popover, formatClock, formatCountdown, formatPercent, type PollingStore, type SettingsStore } from 'ai-plugin-kit';
+import { Popover, formatClock, formatPercent, formatReset, type PollingStore, type SettingsStore } from 'ai-plugin-kit';
 import type { ProviderKind } from './providers';
 import type { PluginSettings } from './settings';
 import type { ProviderStatus } from './store';
@@ -129,7 +129,7 @@ function WindowMeter(props: {
         />
       </div>
       {resetsAt != null && (
-        <span className="xdb--AiUsageReset">{formatCountdown(resetsAt)}后重置</span>
+        <span className="xdb--AiUsageReset">{formatReset(resetsAt)}</span>
       )}
       {used != null && limit != null ? (
         <span className="xdb--AiUsageReset">

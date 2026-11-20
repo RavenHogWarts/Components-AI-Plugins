@@ -82,13 +82,11 @@ function glmWindowKind(type: string): 'tokens' | 'tools' | 'credit' | 'other' {
 }
 
 /** unit=3 表示小时单位（窗口=number 小时）；5 表示 5 小时；6 表示周 */
-function glmWindowLabel(type: string, unit: number | undefined, windowNumber: number | undefined): string {
-  if (type === 'TOKENS_LIMIT') return 'Token 用量';
+function glmWindowLabel(type: string): string {
+  if (type === 'TOKENS_LIMIT') return '剩余额度';
   if (type === 'CREDIT_LIMIT') return '信用额度';
-  const hours = unit === 3 ? (windowNumber ?? 1) : unit === 6 ? 168 : (unit ?? 5);
-  const span = hours >= 24 ? `${hours / 24} 天` : `${hours} 小时`;
-  if (type === 'TIME_LIMIT') return `工具调用（每 ${span}）`;
-  return span;
+  if (type === 'TIME_LIMIT') return '工具调用';
+  return '额度';
 }
 
 export async function fetchGlmReading(http: HttpClient, target: UsageTarget): Promise<Reading> {
@@ -126,7 +124,7 @@ export async function fetchGlmReading(http: HttpClient, target: UsageTarget): Pr
       if (label != null && used !== 0) details.push({ label, used });
     }
     windows.push({
-      label: glmWindowLabel(type, numberOf(limit['unit']), numberOf(limit['number'])),
+      label: glmWindowLabel(type),
       kind: glmWindowKind(type),
       usedPercent: clampPercent(reported ?? ratioPercent(currentValue, usage)),
       used: currentValue,
