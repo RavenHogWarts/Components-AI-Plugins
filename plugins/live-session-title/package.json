@@ -1,6 +1,6 @@
 {
   "name": "live-session-title",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "根据对话最新内容持续更新会话标题；支持按会话 ID、标题正则、Agent 名单排除，可配置标题模型与提示词。",
   "type": "module",
@@ -12,7 +12,11 @@
   },
   "devDependencies": {
     "@obsidian-components/ai-api": "link:../../vendor/ai-api",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "esbuild": "^0.28.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "typescript": "^5.9.3"
   }
 }

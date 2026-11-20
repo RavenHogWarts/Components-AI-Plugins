@@ -1,12 +1,17 @@
 import { Plugin } from '@obsidian-components/ai-api';
 import type {
+  AiApp,
   EventBusApi,
   ModelProviderManager,
+  PluginManifest,
   SessionManager,
   TranscriptFactory,
 } from '@obsidian-components/ai-api';
-import { loadSettings, type PluginSettings } from './settings';
-import { SettingsView, type SettingsHost } from './settingsView';
+import { createElement } from 'react';
+import { loadSettings } from './settings';
+import { createReactView } from './settingsKit';
+import { SettingsStore } from './settingsStore';
+import { LiveSessionTitleSettingsView } from './settingsView';
 import { TitleService } from './titleService';
 
 export default class LiveSessionTitlePlugin extends Plugin {
@@ -17,12 +22,12 @@ export default class LiveSessionTitlePlugin extends Plugin {
     'transcriptFactory',
   ] as const;
 
-  private settings: PluginSettings = loadSettings(undefined);
+  private store?: SettingsStore;
   private titleService?: TitleService;
 
   async onResolving(): Promise<void> {
-    this.settings = loadSettings(await this.api.readData());
-
+    const { api } = this;
+    this.store = new SettingsStore(api, loadSettings(await api.readData()));
     this.titleService = new TitleService(
       {
         eventBus: this.dependencies['eventBus'] as EventBusApi,
@@ -30,37 +35,39 @@ export default class LiveSessionTitlePlugin extends Plugin {
         modelProviderManager: this.dependencies['modelProviderManager'] as ModelProviderManager,
         transcriptFactory: this.dependencies['transcriptFactory'] as TranscriptFactory,
       },
-      () => this.settings,
-      this.api.signal,
+      this.store.getSettings,
+      api.signal,
     );
     this.titleService.start();
-
-    const host: SettingsHost = {
-      getSettings: () => this.settings,
-      saveSettings: async (next) => {
-        this.settings = next;
-        await this.api.writeData(next);
-      },
-      listModelChoices: () =>
-        (this.dependencies['modelProviderManager'] as ModelProviderManager).listChoices(),
-    };
-    let view: SettingsView | undefined;
-    this.api.setSettingsView(
-      class {
-        mount(container: HTMLElement): void {
-          view = new SettingsView(host);
-          view.mount(container);
-        }
-        unmount(): void {
-          view?.unmount();
-          view = undefined;
-        }
-      },
-    );
+    this.provideSettingsView(api, this.store);
   }
 
   async onDisposing(): Promise<void> {
     this.titleService?.dispose();
     this.titleService = undefined;
+    this.store = undefined;
+  }
+
+  /** 与官方插件一致的设置视图挂载方式（React + 尺寸上下文） */
+  private provideSettingsView(api: LiveSessionTitlePlugin['api'], store: SettingsStore): void {
+    const Form = createReactView((input: {
+      store: SettingsStore;
+      app: AiApp;
+      manifest: PluginManifest;
+    }) => createElement(LiveSessionTitleSettingsView, input));
+    api.setSettingsView(
+      class {
+        form = new Form();
+        mount(container: HTMLElement): void {
+          const input = { app: api.app, manifest: api.manifest, store };
+          const density = container.dataset.size;
+          const size = density === 'xs' || density === 'sm' || density === 'lg' ? density : 'md';
+          this.form.mount(container, { size, input });
+        }
+        unmount(): void {
+          this.form.unmount();
+        }
+      },
+    );
   }
 }

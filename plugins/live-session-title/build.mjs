@@ -11,6 +11,9 @@ const options = {
   format: 'cjs',
   platform: 'node',
   target: 'node18',
+  jsx: 'automatic',
+  minify: true,
+  define: { 'process.env.NODE_ENV': '"production"' },
   // 运行时由插件加载器提供，必须保持 external
   external: ['@obsidian-components/ai-api'],
   sourcemap: 'inline',
