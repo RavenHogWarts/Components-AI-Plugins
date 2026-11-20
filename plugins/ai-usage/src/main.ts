@@ -87,7 +87,7 @@ export default class AiUsagePlugin extends Plugin {
         .filter((target) => isEnabled(settings, target.key));
       return Promise.all(
         targets.map(async (target): Promise<ProviderStatus> => {
-          const base = { key: target.key, title: target.title, subtitle: target.subtitle };
+          const base = { key: target.key, title: target.title, subtitle: target.subtitle, kind: target.kind };
           try {
             const reading =
               target.kind === 'glm'

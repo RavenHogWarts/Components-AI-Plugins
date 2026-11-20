@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, type SettingsStore } from 'ai-plugin-kit';
+import { RefreshCw, Sparkles, Terminal, Wallet } from 'lucide-react';
+import type { SettingsStore } from 'ai-plugin-kit';
+import type { ProviderKind } from './providers';
 import type { PluginSettings } from './settings';
 import type { ProviderStatus, UsageStore } from './store';
 
@@ -10,103 +12,182 @@ export interface StatusViewProps {
   onManualRefresh: () => void;
 }
 
-const POPOVER_WIDTH = 320;
+/** 组件样式（移植自 usage-monitor 官方设计，前缀改为 xdb--AiUsage） */
+const STYLES = `
+button:not(.clickable-icon).xdb--AiUsageTrigger{align-items:center;background:transparent;border:none;border-radius:6px;box-shadow:none;color:inherit;cursor:pointer;display:inline-flex;font:inherit;gap:8px;opacity:.75;padding:2px 6px}
+button:not(.clickable-icon).xdb--AiUsageTrigger:hover,button:not(.clickable-icon).xdb--AiUsageTrigger[aria-expanded=true]{background:color-mix(in srgb,currentColor 10%,transparent);opacity:1}
+.xdb--AiUsageIcon{flex-shrink:0;opacity:.85}
+.xdb--AiUsageMetric{align-items:center;display:inline-flex;font-size:11px;font-variant-numeric:tabular-nums;gap:4px;white-space:nowrap}
+.xdb--AiUsageMetric[data-state=error]{opacity:.6}
+.xdb--AiUsagePercent{display:inline-block;min-width:4ch}
+.xdb--AiUsagePopover{width:340px;border:1px solid color-mix(in srgb,currentColor 12%,transparent);border-radius:10px;background:var(--background-primary,#fff);box-shadow:0 8px 24px rgba(0,0,0,.18);color:var(--text-normal,inherit);z-index:1000}
+.xdb--AiUsageBody{display:grid;font-size:12px;gap:10px;padding:12px 14px}
+.xdb--AiUsageCard{background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid color-mix(in srgb,currentColor 10%,transparent);border-radius:8px;display:grid;gap:8px;padding:10px 12px}
+.xdb--AiUsageCardHeader{align-items:baseline;display:flex;gap:12px;justify-content:space-between}
+.xdb--AiUsageCardTitle{align-items:center;display:inline-flex;font-size:11px;font-weight:600;gap:6px;letter-spacing:.04em;opacity:.6;text-transform:uppercase}
+.xdb--AiUsageCardPlan{border:1px solid color-mix(in srgb,currentColor 15%,transparent);border-radius:999px;font-size:10px;letter-spacing:.04em;padding:1px 8px;text-transform:uppercase}
+.xdb--AiUsageCardSub{font-size:11px;opacity:.55}
+.xdb--AiUsageMessage{margin:0;opacity:.85}
+.xdb--AiUsageMessage[data-tone=error]{color:#e05252}
+.xdb--AiUsageMeter{display:grid;gap:3px}
+.xdb--AiUsageRow{display:flex;gap:12px;justify-content:space-between}
+.xdb--AiUsageLabel{opacity:.6;white-space:nowrap}
+.xdb--AiUsageValue{font-variant-numeric:tabular-nums;text-align:right}
+.xdb--AiUsageBar{background:color-mix(in srgb,currentColor 15%,transparent);border-radius:3px;height:4px;overflow:hidden}
+.xdb--AiUsageBarFill{background:currentColor;height:100%;transition:width .3s ease}
+.xdb--AiUsageBarFill[data-tone=warn]{background:#d99a2b}
+.xdb--AiUsageBarFill[data-tone=critical]{background:#e05252}
+.xdb--AiUsageReset{font-size:11px;opacity:.55}
+.xdb--AiUsageFooter{align-items:center;display:flex;gap:8px;justify-content:space-between}
+.xdb--AiUsageFooterTime{font-size:11px;opacity:.55}
+button:not(.clickable-icon).xdb--AiUsageRefresh{align-items:center;background:transparent;border:none;border-radius:4px;box-shadow:none;color:inherit;cursor:pointer;display:inline-flex;padding:3px}
+button:not(.clickable-icon).xdb--AiUsageRefresh:hover{background:color-mix(in srgb,currentColor 10%,transparent)}
+button:not(.clickable-icon).xdb--AiUsageRefresh:disabled{cursor:default;opacity:.5}
+.xdb--AiUsageRefreshSpin{animation:xdb--AiUsageSpin 1s linear infinite}
+@keyframes xdb--AiUsageSpin{to{transform:rotate(360deg)}}
+`.trim();
 
 function formatPercent(value: number): string {
   return `${Math.round(value)}%`;
 }
 
-function formatCount(value: number | undefined): string | undefined {
-  if (value == null || !Number.isFinite(value)) return undefined;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
-  return String(Math.round(value));
+function formatClock(epochMs: number): string {
+  return new Date(epochMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatTime(ts: number): string {
-  const date = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+function formatCountdown(resetsAt: number, now = Date.now()): string {
+  const remainingMs = resetsAt - now;
+  if (remainingMs <= 0) return '已到重置时间';
+  const minutes = Math.round(remainingMs / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  if (days > 0) return `${days}天${hours}小时`;
+  if (hours > 0) return `${hours}小时${mins}分`;
+  return `${mins}分钟`;
 }
 
-/** 紧凑单行摘要（状态栏用） */
-function shortText(status: ProviderStatus, mode: PluginSettings['displayMode']): string | undefined {
+function IconOfKind(kind: ProviderKind) {
+  if (kind === 'codex') return Terminal;
+  return kind === 'glm' ? Sparkles : Wallet;
+}
+
+/** 摘要百分比：正向=已用，逆向=剩余 */
+function summaryPercent(status: ProviderStatus, mode: PluginSettings['displayMode']): number | undefined {
+  if (status.result?.type !== 'ok') return undefined;
+  const window = status.result.reading.windows.find((w) => w.usedPercent != null);
+  if (!window || window.usedPercent == null) return undefined;
+  return mode === 'used' ? window.usedPercent : 100 - window.usedPercent;
+}
+
+function metricText(status: ProviderStatus, mode: PluginSettings['displayMode']): string {
+  const percent = summaryPercent(status, mode);
+  if (percent != null) return formatPercent(percent);
+  if (status.result?.type === 'ok') {
+    const amount = status.result.reading.amounts[0];
+    if (amount) return amount.text;
+    return '—';
+  }
   if (!status.result) return '…';
-  if (status.result.type === 'error') return '✕';
-  const reading = status.result.reading;
-  const percentWindow = reading.windows.find((w) => w.usedPercent != null);
-  if (percentWindow && percentWindow.usedPercent != null) {
-    const used = percentWindow.usedPercent;
-    return mode === 'used' ? formatPercent(used) : formatPercent(100 - used);
-  }
-  const amount = reading.amounts[0];
-  if (amount) return amount.text;
-  return '—';
+  return '!';
 }
 
-function WindowLine(props: {
-  label: string;
-  usedPercent?: number;
-  used?: number;
-  limit?: number;
-  resetsAt?: number;
-  mode: PluginSettings['displayMode'];
-}) {
-  const { label, usedPercent, used, limit, resetsAt, mode } = props;
-  const parts: string[] = [];
-  if (usedPercent != null) {
-    parts.push(
-      mode === 'used' ? `已用 ${formatPercent(usedPercent)}` : `剩余 ${formatPercent(100 - usedPercent)}`,
-    );
-  }
-  const usedText = formatCount(used);
-  const limitText = formatCount(limit);
-  if (usedText && limitText) {
-    const remainingText = formatCount((limit ?? 0) - (used ?? 0));
-    parts.push(mode === 'used' ? `${usedText}/${limitText}` : `${remainingText}/${limitText}`);
-  }
-  if (resetsAt) parts.push(`重置 ${formatTime(resetsAt)}`);
+function ProviderMetric(props: { status: ProviderStatus; mode: PluginSettings['displayMode'] }) {
+  const { status, mode } = props;
+  const state = !status.result ? 'pending' : status.result.type === 'ok' ? 'ok' : 'error';
+  const Icon = IconOfKind(status.kind);
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-      <span style={{ opacity: 0.8 }}>{label}</span>
-      <span>{parts.join(' · ')}</span>
+    <span className="xdb--AiUsageMetric" data-state={state}>
+      <Icon className="xdb--AiUsageIcon" size={12} aria-hidden="true" />
+      {status.title}
+      <span className="xdb--AiUsagePercent">{metricText(status, mode)}</span>
+    </span>
+  );
+}
+
+function WindowMeter(props: {
+  label: string;
+  usedPercent: number;
+  mode: PluginSettings['displayMode'];
+  resetsAt?: number;
+}) {
+  const { label, usedPercent, mode, resetsAt } = props;
+  const shown = mode === 'used' ? usedPercent : 100 - usedPercent;
+  const tone = mode === 'remaining'
+    ? shown <= 10 ? 'critical' : shown <= 30 ? 'warn' : undefined
+    : shown >= 90 ? 'critical' : shown >= 70 ? 'warn' : undefined;
+  const verb = mode === 'used' ? '已用' : '剩余';
+  return (
+    <div className="xdb--AiUsageMeter">
+      <div className="xdb--AiUsageRow">
+        <span className="xdb--AiUsageLabel">{label}</span>
+        <span className="xdb--AiUsageValue">
+          {verb} {formatPercent(shown)}
+        </span>
+      </div>
+      <div
+        className="xdb--AiUsageBar"
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={Math.round(shown)}
+        aria-valuetext={`${verb} ${formatPercent(shown)}`}
+      >
+        <div
+          className="xdb--AiUsageBarFill"
+          data-tone={tone}
+          style={{ width: `${Math.min(100, Math.max(0, shown))}%` }}
+        />
+      </div>
+      {resetsAt != null && (
+        <span className="xdb--AiUsageReset">{formatCountdown(resetsAt)}后重置</span>
+      )}
     </div>
   );
 }
 
-function ProviderSection(props: { status: ProviderStatus; mode: PluginSettings['displayMode'] }) {
+function ProviderCard(props: { status: ProviderStatus; mode: PluginSettings['displayMode'] }) {
   const { status, mode } = props;
+  const result = status.result;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontWeight: 600 }}>
-        <span>
-          {status.title}
-          {status.result?.type === 'ok' && status.result.reading.plan
-            ? ` · ${status.result.reading.plan}`
-            : ''}
-        </span>
-      </div>
-      {status.result?.type === 'error' ? (
-        <div style={{ color: 'var(--text-error, #e93147)' }}>{status.result.message}</div>
-      ) : null}
-      {status.result?.type === 'ok' ? (
+    <section className="xdb--AiUsageCard" aria-label={status.title}>
+      <header className="xdb--AiUsageCardHeader">
+        <span className="xdb--AiUsageCardTitle">{status.title}</span>
+        {result?.type === 'ok' && result.reading.plan ? (
+          <span className="xdb--AiUsageCardPlan">{result.reading.plan}</span>
+        ) : null}
+      </header>
+      {status.subtitle ? <span className="xdb--AiUsageCardSub">{status.subtitle}</span> : null}
+      {!result ? (
+        <p className="xdb--AiUsageMessage">正在获取…</p>
+      ) : result.type !== 'ok' ? (
+        <p className="xdb--AiUsageMessage" data-tone="error">{result.message}</p>
+      ) : result.reading.windows.length === 0 && result.reading.amounts.length === 0 ? (
+        <p className="xdb--AiUsageMessage">接口未返回特定数据。</p>
+      ) : (
         <>
-          {status.result.reading.notice ? (
-            <div style={{ opacity: 0.75 }}>{status.result.reading.notice}</div>
-          ) : null}
-          {status.result.reading.windows.map((window, index) => (
-            <WindowLine key={`${window.label}-${index}`} {...window} mode={mode} />
-          ))}
-          {status.result.reading.amounts.map((amount) => (
-            <div key={amount.label} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-              <span style={{ opacity: 0.8 }}>{amount.label}</span>
-              <span>{amount.text}</span>
+          {result.reading.windows
+            .filter((window) => window.usedPercent != null)
+            .map((window) => (
+              <WindowMeter
+                key={window.label}
+                label={window.label}
+                usedPercent={window.usedPercent ?? 0}
+                mode={mode}
+                resetsAt={window.resetsAt}
+              />
+            ))}
+          {result.reading.amounts.map((amount) => (
+            <div key={amount.label} className="xdb--AiUsageRow">
+              <span className="xdb--AiUsageLabel">{amount.label}</span>
+              <span className="xdb--AiUsageValue">{amount.text}</span>
             </div>
           ))}
+          {result.reading.notice ? (
+            <p className="xdb--AiUsageMessage" data-tone="error">{result.reading.notice}</p>
+          ) : null}
         </>
-      ) : null}
-      {status.subtitle ? <div style={{ fontSize: '11px', opacity: 0.55 }}>{status.subtitle}</div> : null}
-    </div>
+      )}
+    </section>
   );
 }
 
@@ -116,12 +197,13 @@ export function UsageStatusView(props: StatusViewProps) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
-  // 自愈：清理历史 reload 遗留的孤儿根（服务延迟挂载时被注销会失去跟踪）
+  // 自愈：清理历史 reload 遗留的孤儿根（以根元素 ref 判定归属，与按钮渲染无关）
   useEffect(() => {
-    const button = buttonRef.current;
+    const own = rootRef.current;
     for (const el of [...document.querySelectorAll('[data-ai-usage-root]')]) {
-      if (button != null && el.contains(button)) continue;
+      if (el === own) continue;
       el.remove();
     }
   }, []);
@@ -158,83 +240,62 @@ export function UsageStatusView(props: StatusViewProps) {
     };
   }, [open]);
 
-  const summary = snapshot.entries
-    .map((status) => {
-      const text = shortText(status, settings.displayMode);
-      return text ? `${status.title} ${text}` : status.title;
-    })
-    .join(' · ');
-
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : POPOVER_WIDTH + 16;
-  const popoverLeft =
-    rect != null ? Math.min(Math.max(8, rect.right - POPOVER_WIDTH), Math.max(8, viewportWidth - POPOVER_WIDTH - 8)) : 8;
-  const popoverTop = rect != null ? Math.max(8, rect.top - 8) : 8;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
+  const left =
+    rect != null
+      ? Math.min(Math.max(8, rect.right - 340), Math.max(8, viewportWidth - 348))
+      : 8;
+  const top = rect != null ? Math.max(8, rect.top - 8) : 8;
 
   return (
-    <div data-ai-usage-root style={{ display: 'inline-flex', alignItems: 'center', fontVariantNumeric: 'tabular-nums' }}>
-      <Button
-        ref={buttonRef}
-        type="button"
-        variant="ghost"
-        size="xs"
-        data-color="default"
-        data-shape="rounded"
-        data-slot="button"
-        data-state={open ? 'open' : 'closed'}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        onClick={() => setOpen((value) => !value)}
-        title="AI 用量"
-        style={{ opacity: snapshot.entries.length === 0 ? 0.6 : 1, fontVariantNumeric: 'tabular-nums' }}
-      >
-        {snapshot.refreshing ? '⟳ ' : ''}
-        {summary.length > 0 ? summary : 'AI 用量'}
-      </Button>
-      {open
+    <div ref={rootRef} data-ai-usage-root style={{ display: 'inline-flex', alignItems: 'center' }}>
+      <style>{STYLES}</style>
+      {snapshot.entries.length > 0 ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          className="xdb--AiUsageTrigger"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label="AI 用量"
+          onClick={() => setOpen((value) => !value)}
+        >
+          {snapshot.entries.map((status) => (
+            <ProviderMetric key={status.key} status={status} mode={settings.displayMode} />
+          ))}
+        </button>
+      ) : null}
+      {open && snapshot.entries.length > 0
         ? createPortal(
             <div
               data-ai-usage-popover
-              style={{
-                position: 'fixed',
-                left: `${popoverLeft}px`,
-                top: `${popoverTop}px`,
-                width: `${POPOVER_WIDTH}px`,
-                transform: 'translateY(-100%)',
-                zIndex: 1000,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                padding: '12px 14px',
-                borderRadius: '10px',
-                border: '1px solid var(--background-modifier-border, #ccc)',
-                background: 'var(--background-primary, #fff)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-                fontSize: '12px',
-                color: 'var(--text-normal, inherit)',
-              }}
+              className="xdb--AiUsagePopover"
+              role="dialog"
+              aria-label="AI 用量"
+              style={{ position: 'fixed', left: `${left}px`, top: `${top}px`, transform: 'translateY(-100%)' }}
             >
-              {snapshot.entries.map((status) => (
-                <ProviderSection key={status.key} status={status} mode={settings.displayMode} />
-              ))}
-              {snapshot.entries.length === 0 ? (
-                <div style={{ opacity: 0.7 }}>暂无已启用的用量来源</div>
-              ) : null}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderTop: '1px solid var(--background-modifier-border, #eee)',
-                  paddingTop: '8px',
-                }}
-              >
-                <span style={{ opacity: 0.6 }}>
-                  {snapshot.fetchedAt > 0 ? `更新于 ${formatTime(snapshot.fetchedAt)}` : '尚未更新'}
-                </span>
-                <Button size="sm" variant="ghost" disabled={snapshot.refreshing} onClick={props.onManualRefresh}>
-                  刷新
-                </Button>
+              <div className="xdb--AiUsageBody">
+                {snapshot.entries.map((status) => (
+                  <ProviderCard key={status.key} status={status} mode={settings.displayMode} />
+                ))}
+                <div className="xdb--AiUsageFooter">
+                  <span className="xdb--AiUsageFooterTime">
+                    {snapshot.fetchedAt > 0 ? `更新于 ${formatClock(snapshot.fetchedAt)}` : '正在获取…'}
+                  </span>
+                  <button
+                    type="button"
+                    className="xdb--AiUsageRefresh"
+                    onClick={props.onManualRefresh}
+                    disabled={snapshot.refreshing}
+                    aria-label="手动刷新"
+                  >
+                    <RefreshCw
+                      size={12}
+                      aria-hidden="true"
+                      className={snapshot.refreshing ? 'xdb--AiUsageRefreshSpin' : undefined}
+                    />
+                  </button>
+                </div>
               </div>
             </div>,
             document.body,
