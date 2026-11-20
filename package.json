@@ -1,0 +1,12 @@
+{
+  "name": "components-ai-plugins",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Obsidian Components AI 插件开发工作区：TypeScript 源码 + esbuild 编译 + 部署到目标库 .agents/plugins/",
+  "packageManager": "pnpm@12.15.0",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "deploy": "pnpm -r run deploy"
+  }
+}
