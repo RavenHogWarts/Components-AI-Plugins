@@ -1,9 +1,9 @@
 {
   "name": "ai-plugin-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Obsidian Components AI 插件共享工具包：官方风格设置 UI 组件、设置存储、构建约定",
+  "description": "Obsidian Components AI 插件共享工具包：官方风格设置 UI 组件、设置存储、弹层、轮询、构建约定",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "peerDependencies": {
@@ -11,6 +11,7 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
+    "@obsidian-components/ai-api": "link:../../vendor/ai-api",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3"
   }

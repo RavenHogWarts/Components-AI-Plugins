@@ -179,6 +179,9 @@ importers:
         specifier: '>=18'
         version: 19.3.1(react@19.3.1)
     devDependencies:
+      '@obsidian-components/ai-api':
+        specifier: link:../../vendor/ai-api
+        version: link:../../vendor/ai-api
       '@types/react':
         specifier: ^19.2.17
         version: 19.3.0
