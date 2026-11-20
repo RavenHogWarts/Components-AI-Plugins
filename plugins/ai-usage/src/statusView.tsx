@@ -37,7 +37,7 @@ function shortText(status: ProviderStatus, mode: PluginSettings['displayMode']):
   const percentWindow = reading.windows.find((w) => w.usedPercent != null);
   if (percentWindow && percentWindow.usedPercent != null) {
     const used = percentWindow.usedPercent;
-    return mode === 'used' ? formatPercent(used) : `剩${formatPercent(100 - used)}`;
+    return mode === 'used' ? formatPercent(used) : formatPercent(100 - used);
   }
   const amount = reading.amounts[0];
   if (amount) return amount.text;
@@ -117,6 +117,15 @@ export function UsageStatusView(props: StatusViewProps) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
+  // 自愈：清理历史 reload 遗留的孤儿根（服务延迟挂载时被注销会失去跟踪）
+  useEffect(() => {
+    const button = buttonRef.current;
+    for (const el of [...document.querySelectorAll('[data-ai-usage-root]')]) {
+      if (button != null && el.contains(button)) continue;
+      el.remove();
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return undefined;
     const syncRect = (): void => {
@@ -163,22 +172,24 @@ export function UsageStatusView(props: StatusViewProps) {
 
   return (
     <div data-ai-usage-root style={{ display: 'inline-flex', alignItems: 'center', fontVariantNumeric: 'tabular-nums' }}>
-      <button
+      <Button
         ref={buttonRef}
         type="button"
+        variant="ghost"
+        size="xs"
+        data-color="default"
+        data-shape="rounded"
+        data-slot="button"
+        data-state={open ? 'open' : 'closed'}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen((value) => !value)}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          padding: '2px 8px',
-          borderRadius: '6px',
-          opacity: snapshot.entries.length === 0 ? 0.6 : 1,
-        }}
         title="AI 用量"
+        style={{ opacity: snapshot.entries.length === 0 ? 0.6 : 1, fontVariantNumeric: 'tabular-nums' }}
       >
         {snapshot.refreshing ? '⟳ ' : ''}
         {summary.length > 0 ? summary : 'AI 用量'}
-      </button>
+      </Button>
       {open
         ? createPortal(
             <div
