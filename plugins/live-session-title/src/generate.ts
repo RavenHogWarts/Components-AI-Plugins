@@ -49,11 +49,11 @@ export async function generateTitle(
     signal,
   });
 
-  const text = response.message.content
-    .filter((part) => part.type === 'text' && typeof part.text === 'string')
-    .map((part) => part.text as string)
-    .join('')
-    .trim();
+  const textParts: string[] = [];
+  for (const part of response.message.content) {
+    if (part.type === 'text' && typeof part.text === 'string') textParts.push(part.text);
+  }
+  const text = textParts.join('').trim();
   if (text.length === 0) return undefined;
   const title = sanitizeTitle(text, settings.maxLength);
   return title.length > 0 ? title : undefined;
