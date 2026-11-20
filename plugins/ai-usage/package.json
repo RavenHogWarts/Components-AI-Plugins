@@ -1,6 +1,6 @@
 {
   "name": "ai-usage",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "监控已配置模型的用量（GLM/DeepSeek/Codex CLI），支持正向/逆向显示与按模型开关",
   "type": "module",

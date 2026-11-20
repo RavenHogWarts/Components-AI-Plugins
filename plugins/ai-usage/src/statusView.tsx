@@ -51,10 +51,18 @@ function IconOfKind(kind: ProviderKind) {
   return kind === 'glm' ? Sparkles : Wallet;
 }
 
-/** 摘要百分比：正向=已用，逆向=剩余 */
+const KIND_PRIORITY: ReadonlyArray<'tokens' | 'credit' | 'tools' | 'other'> = ['tokens', 'credit', 'tools', 'other'];
+
+function kindOf(window: { kind?: string }): string {
+  return window.kind ?? 'other';
+}
+
+/** 摘要百分比：Token 用量优先；正向=已用，逆向=剩余 */
 function summaryPercent(status: ProviderStatus, mode: PluginSettings['displayMode']): number | undefined {
   if (status.result?.type !== 'ok') return undefined;
-  const window = status.result.reading.windows.find((w) => w.usedPercent != null);
+  const windows = status.result.reading.windows.filter((w) => w.usedPercent != null);
+  const window =
+    KIND_PRIORITY.map((kind) => windows.find((w) => kindOf(w) === kind)).find(Boolean) ?? windows[0];
   if (!window || window.usedPercent == null) return undefined;
   return mode === 'used' ? window.usedPercent : 100 - window.usedPercent;
 }
@@ -89,8 +97,11 @@ function WindowMeter(props: {
   usedPercent: number;
   mode: PluginSettings['displayMode'];
   resetsAt?: number;
+  used?: number;
+  limit?: number;
+  details?: ReadonlyArray<{ label: string; used?: number }>;
 }) {
-  const { label, usedPercent, mode, resetsAt } = props;
+  const { label, usedPercent, mode, resetsAt, used, limit, details } = props;
   const shown = mode === 'used' ? usedPercent : 100 - usedPercent;
   const tone = mode === 'remaining'
     ? shown <= 10 ? 'critical' : shown <= 30 ? 'warn' : undefined
@@ -120,6 +131,16 @@ function WindowMeter(props: {
       {resetsAt != null && (
         <span className="xdb--AiUsageReset">{formatCountdown(resetsAt)}后重置</span>
       )}
+      {used != null && limit != null ? (
+        <span className="xdb--AiUsageReset">
+          {mode === 'used' ? `${used}/${limit}` : `${limit - used}/${limit}`} 次
+        </span>
+      ) : null}
+      {details && details.length > 0 ? (
+        <span className="xdb--AiUsageReset">
+          {details.map((detail) => `${detail.label} ${detail.used ?? 0}`).join(' · ')}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -146,6 +167,8 @@ function ProviderCard(props: { status: ProviderStatus; mode: PluginSettings['dis
         <>
           {result.reading.windows
             .filter((window) => window.usedPercent != null)
+            .slice()
+            .sort((a, b) => KIND_PRIORITY.indexOf(kindOf(a) as never) - KIND_PRIORITY.indexOf(kindOf(b) as never))
             .map((window) => (
               <WindowMeter
                 key={window.label}
@@ -153,6 +176,9 @@ function ProviderCard(props: { status: ProviderStatus; mode: PluginSettings['dis
                 usedPercent={window.usedPercent ?? 0}
                 mode={mode}
                 resetsAt={window.resetsAt}
+                used={window.used}
+                limit={window.limit}
+                details={window.details}
               />
             ))}
           {result.reading.amounts.map((amount) => (

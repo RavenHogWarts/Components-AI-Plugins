@@ -5,10 +5,14 @@ import { deepseekEndpoint, glmEndpoint, type UsageTarget } from './providers';
 /** 归一化用量读数 */
 export interface UsageWindow {
   label: string;
+  /** tokens=Token 用量；tools=工具调用配额；credit=信用额度 */
+  kind: 'tokens' | 'tools' | 'credit' | 'other';
   usedPercent?: number;
   used?: number;
   limit?: number;
   resetsAt?: number;
+  /** 明细分项（如各工具的调用次数） */
+  details?: ReadonlyArray<{ label: string; used?: number }>;
 }
 
 export interface UsageAmount {
@@ -70,11 +74,21 @@ async function getJson(
 
 // ---------- GLM ----------
 
+function glmWindowKind(type: string): 'tokens' | 'tools' | 'credit' | 'other' {
+  if (type === 'TOKENS_LIMIT') return 'tokens';
+  if (type === 'CREDIT_LIMIT') return 'credit';
+  if (type === 'TIME_LIMIT') return 'tools';
+  return 'other';
+}
+
+/** unit=3 表示小时单位（窗口=number 小时）；5 表示 5 小时；6 表示周 */
 function glmWindowLabel(type: string, unit: number | undefined, windowNumber: number | undefined): string {
-  if (type === 'TOKENS_LIMIT') return 'Token 配额';
-  if (type === 'CREDIT_LIMIT') return '信用配额';
-  const unitLabel = unit === 3 ? '小时' : unit === 5 ? '5 小时' : unit === 6 ? '周' : '窗口';
-  return windowNumber != null ? `${windowNumber} 次/${unitLabel}` : unitLabel;
+  if (type === 'TOKENS_LIMIT') return 'Token 用量';
+  if (type === 'CREDIT_LIMIT') return '信用额度';
+  const hours = unit === 3 ? (windowNumber ?? 1) : unit === 6 ? 168 : (unit ?? 5);
+  const span = hours >= 24 ? `${hours / 24} 天` : `${hours} 小时`;
+  if (type === 'TIME_LIMIT') return `工具调用（每 ${span}）`;
+  return span;
 }
 
 export async function fetchGlmReading(http: HttpClient, target: UsageTarget): Promise<Reading> {
@@ -103,12 +117,22 @@ export async function fetchGlmReading(http: HttpClient, target: UsageTarget): Pr
       typeof resetsAtRaw === 'string' && /^\d+$/.test(resetsAtRaw)
         ? Number(resetsAtRaw)
         : numberOf(resetsAtRaw);
+    const detailsRaw = Array.isArray(limit['usageDetails']) ? (limit['usageDetails'] as unknown[]) : [];
+    const details: Array<{ label: string; used?: number }> = [];
+    for (const item of detailsRaw) {
+      const detail = recordOf(item);
+      const label = stringOf(detail?.['modelCode']);
+      const used = numberOf(detail?.['usage']) ?? 0;
+      if (label != null && used !== 0) details.push({ label, used });
+    }
     windows.push({
       label: glmWindowLabel(type, numberOf(limit['unit']), numberOf(limit['number'])),
+      kind: glmWindowKind(type),
       usedPercent: clampPercent(reported ?? ratioPercent(currentValue, usage)),
       used: currentValue,
       limit: usage,
       resetsAt,
+      details: details.length > 0 ? details : undefined,
     });
   }
   return {
@@ -239,7 +263,7 @@ function codexWindow(value: unknown): UsageWindow | undefined {
   const minutes = numberOf(record['windowDurationMins']);
   const resetsAt = numberOf(record['resetsAt']);
   if (usedPercent == null && minutes == null && resetsAt == null) return undefined;
-  return { label: windowLabelOfMinutes(minutes), usedPercent, resetsAt };
+  return { label: windowLabelOfMinutes(minutes), kind: 'other', usedPercent, resetsAt };
 }
 
 function withTimeoutMs<T>(promise: Promise<T>): Promise<T> {
