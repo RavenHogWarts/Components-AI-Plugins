@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AiApp, ModelRef, PluginManifest, SessionData } from '@obsidian-components/ai-api';
 import { DEFAULT_PROMPT, type PluginSettings } from './settings';
-import type { SettingsStore } from './settingsStore';
-import { Button, SettingsSection, SettingItem, SettingSelect, SettingText, SettingTextarea } from './settingsKit';
+import type { SettingsStore } from 'ai-plugin-kit';
+import { Button, SettingsSection, SettingItem, SettingSelect, SettingText, SettingTextarea } from 'ai-plugin-kit';
 
 export interface LiveSessionTitleViewProps {
-  store: SettingsStore;
+  store: SettingsStore<PluginSettings>;
   app: AiApp;
   manifest: PluginManifest;
 }

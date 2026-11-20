@@ -14,7 +14,7 @@
     "@obsidian-components/ai-api": "link:../../vendor/ai-api",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "esbuild": "^0.28.1",
+    "ai-plugin-kit": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "typescript": "^5.9.3"

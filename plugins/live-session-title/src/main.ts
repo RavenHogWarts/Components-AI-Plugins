@@ -8,9 +8,8 @@ import type {
   TranscriptFactory,
 } from '@obsidian-components/ai-api';
 import { createElement } from 'react';
-import { loadSettings } from './settings';
-import { createReactView } from './settingsKit';
-import { SettingsStore } from './settingsStore';
+import { loadSettings, type PluginSettings } from './settings';
+import { createReactView, SettingsStore } from 'ai-plugin-kit';
 import { LiveSessionTitleSettingsView } from './settingsView';
 import { TitleService } from './titleService';
 
@@ -22,12 +21,12 @@ export default class LiveSessionTitlePlugin extends Plugin {
     'transcriptFactory',
   ] as const;
 
-  private store?: SettingsStore;
+  private store?: SettingsStore<PluginSettings>;
   private titleService?: TitleService;
 
   async onResolving(): Promise<void> {
     const { api } = this;
-    this.store = new SettingsStore(api, loadSettings(await api.readData()));
+    this.store = new SettingsStore(api, loadSettings(await api.readData()), loadSettings);
     this.titleService = new TitleService(
       {
         eventBus: this.dependencies['eventBus'] as EventBusApi,
@@ -49,9 +48,9 @@ export default class LiveSessionTitlePlugin extends Plugin {
   }
 
   /** 与官方插件一致的设置视图挂载方式（React + 尺寸上下文） */
-  private provideSettingsView(api: LiveSessionTitlePlugin['api'], store: SettingsStore): void {
+  private provideSettingsView(api: LiveSessionTitlePlugin['api'], store: SettingsStore<PluginSettings>): void {
     const Form = createReactView((input: {
-      store: SettingsStore;
+      store: SettingsStore<PluginSettings>;
       app: AiApp;
       manifest: PluginManifest;
     }) => createElement(LiveSessionTitleSettingsView, input));

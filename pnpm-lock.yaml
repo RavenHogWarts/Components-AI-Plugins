@@ -164,7 +164,27 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.2
+
+  packages/ai-plugin-kit:
+    dependencies:
+      react:
+        specifier: '>=18'
+        version: 19.3.1
+      react-dom:
+        specifier: '>=18'
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.3.0(@types/react@19.3.0)
 
   plugins/live-session-title:
     devDependencies:
@@ -177,9 +197,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.3.0(@types/react@19.3.0)
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.2
+      ai-plugin-kit:
+        specifier: workspace:*
+        version: link:../../packages/ai-plugin-kit
       react:
         specifier: ^19.2.7
         version: 19.3.1
