@@ -14,6 +14,7 @@ import { deployPlugin } from './deploy-lib.mjs';
 export async function runPluginBuild(metaUrl, overrides = {}) {
   const pluginDir = path.dirname(fileURLToPath(metaUrl));
   const watch = process.argv.includes('--watch');
+  const dev = process.argv.includes('--dev');
 
   const options = {
     entryPoints: ['src/main.ts'],
@@ -27,7 +28,10 @@ export async function runPluginBuild(metaUrl, overrides = {}) {
     define: { 'process.env.NODE_ENV': '"production"' },
     // 运行时由插件加载器提供，必须保持 external
     external: ['@obsidian-components/ai-api'],
-    sourcemap: 'inline',
+    // 优先 ESM 入口，保证 lucide-react 等库可被树摇（默认 main 先命中 CJS 全量包）
+    mainFields: ['module', 'main'],
+    sourcemap: dev ? 'inline' : false,
+    legalComments: dev ? 'eof' : 'none',
     logLevel: 'info',
     absWorkingDir: pluginDir,
     ...overrides,
