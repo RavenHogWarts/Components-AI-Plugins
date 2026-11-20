@@ -1,0 +1,7 @@
+{
+  "name": "@obsidian-components/ai-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "本地类型声明桩：运行时由插件加载器提供同名模块（构建时保持 external）",
+  "types": "index.d.ts"
+}
