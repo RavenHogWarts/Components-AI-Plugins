@@ -9,7 +9,7 @@ import type {
 } from '@obsidian-components/ai-api';
 import { createElement } from 'react';
 import { loadSettings, type PluginSettings } from './settings';
-import { createReactView, SettingsStore } from 'ai-plugin-kit';
+import { createReactView, mountSettingsView, SettingsStore } from 'ai-plugin-kit';
 import { LiveSessionTitleSettingsView } from './settingsView';
 import { TitleService } from './titleService';
 
@@ -47,26 +47,13 @@ export default class LiveSessionTitlePlugin extends Plugin {
     this.store = undefined;
   }
 
-  /** 与官方插件一致的设置视图挂载方式（React + 尺寸上下文） */
+  /** 与官方插件一致的设置视图挂载方式（React + 尺寸上下文，kit 公共件） */
   private provideSettingsView(api: LiveSessionTitlePlugin['api'], store: SettingsStore<PluginSettings>): void {
     const Form = createReactView((input: {
       store: SettingsStore<PluginSettings>;
       app: AiApp;
       manifest: PluginManifest;
     }) => createElement(LiveSessionTitleSettingsView, input));
-    api.setSettingsView(
-      class {
-        form = new Form();
-        mount(container: HTMLElement): void {
-          const input = { app: api.app, manifest: api.manifest, store };
-          const density = container.dataset.size;
-          const size = density === 'xs' || density === 'sm' || density === 'lg' ? density : 'md';
-          this.form.mount(container, { size, input });
-        }
-        unmount(): void {
-          this.form.unmount();
-        }
-      },
-    );
+    mountSettingsView(api, Form, () => ({ app: api.app, manifest: api.manifest, store }));
   }
 }

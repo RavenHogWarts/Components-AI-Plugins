@@ -1,7 +1,7 @@
 import { Plugin } from '@obsidian-components/ai-api';
 import type { AiApp, ModelProviderManager, PluginManifest } from '@obsidian-components/ai-api';
 import { createElement } from 'react';
-import { createReactView, SettingsStore } from 'ai-plugin-kit';
+import { createReactView, mountSettingsView, PollingStore, SettingsStore } from 'ai-plugin-kit';
 import {
   canSpawnProcesses,
   fetchCodexReading,
@@ -12,7 +12,7 @@ import {
 import { classifyConnections, codexTarget, type UsageTarget } from './providers';
 import { isEnabled, loadSettings, type FooterPosition, type PluginSettings } from './settings';
 import { AiUsageSettingsView } from './settingsView';
-import { UsageStore, type ProviderStatus } from './store';
+import type { ProviderStatus } from './store';
 import { UsageStatusView } from './statusView';
 
 interface ComposerFooterItem {
@@ -48,7 +48,7 @@ export default class AiUsagePlugin extends Plugin {
   static inject = ['modelProviderManager'] as const;
 
   private settingsStore?: SettingsStore<PluginSettings>;
-  private usageStore?: UsageStore;
+  private usageStore?: PollingStore<readonly ProviderStatus[]>;
   private readonly resources: Array<() => void> = [];
   private codexProbes = new Map<string, Promise<boolean>>();
 
@@ -103,7 +103,12 @@ export default class AiUsagePlugin extends Plugin {
       );
     };
 
-    this.usageStore = new UsageStore(read, () => settingsStore.getSettings().pollMinutes * 60_000, api.signal);
+    this.usageStore = new PollingStore<readonly ProviderStatus[]>(
+      read,
+      () => settingsStore.getSettings().pollMinutes * 60_000,
+      api.signal,
+      [],
+    );
     const usageStore = this.usageStore;
     usageStore.start();
 
@@ -157,20 +162,12 @@ export default class AiUsagePlugin extends Plugin {
       manifest: PluginManifest;
       getTargets: () => readonly UsageTarget[];
     }) => createElement(AiUsageSettingsView, input));
-    api.setSettingsView(
-      class {
-        form = new Form();
-        mount(container: HTMLElement): void {
-          const input = { app, manifest: api.manifest, store: settingsStore, getTargets: getTargetsRef };
-          const density = container.dataset.size;
-          const size = density === 'xs' || density === 'sm' || density === 'lg' ? density : 'md';
-          this.form.mount(container, { size, input });
-        }
-        unmount(): void {
-          this.form.unmount();
-        }
-      },
-    );
+    mountSettingsView(api, Form, () => ({
+      app,
+      manifest: api.manifest,
+      store: settingsStore,
+      getTargets: getTargetsRef,
+    }));
   }
 
   async onDisposing(): Promise<void> {
