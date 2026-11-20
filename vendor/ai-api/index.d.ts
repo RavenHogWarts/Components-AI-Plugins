@@ -200,6 +200,7 @@ export interface ViewRendererConstructor {
 
 export interface PluginManifest {
   readonly name: string;
+  readonly version?: string;
   readonly description?: string;
   readonly [key: string]: unknown;
 }
