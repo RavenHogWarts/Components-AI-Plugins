@@ -1,0 +1,23 @@
+{
+  "name": "ai-usage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "监控已配置模型的用量（GLM/DeepSeek/Codex CLI），支持正向/逆向显示与按模型开关",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs",
+    "deploy": "pnpm typecheck && pnpm build && node ../../scripts/deploy.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "devDependencies": {
+    "@obsidian-components/ai-api": "link:../../vendor/ai-api",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "ai-plugin-kit": "workspace:*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^5.9.3"
+  }
+}
