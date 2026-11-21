@@ -420,3 +420,99 @@ export interface MessageTransformer {
   transform(event, context): { type: 'append'|'prepend'|'replace'; content } | undefined;
 }
 ```
+---
+
+## 第三轮补全（Hook 上下文 / 视图输入 / 面板 / 搜索提供者）
+
+### TurnExecutionContext（Hook 上下文基座）
+
+```ts
+export interface TurnExecutionContext extends SessionContext {
+  readonly turnId: string;
+  readonly history: readonly EventData[];   // 本次活动前的祖先事实
+  readonly signal: AbortSignal;
+  readonly agent: AgentData;
+  readonly model: Model;
+  readonly reasoning: ReasoningOptions;
+  readonly options: Readonly<Record<string, unknown>>;
+  readonly toolExecutor: ToolExecutor;
+  interrupt(request: InterruptionRequest): Promise<Interruption>;  // 提交业务中断请求
+}
+// StepHookContext: + { step; tools: readonly Tool[] }
+// ModelRequestHookContext: { modelCallId; model; request; signal; execution?; history? }
+// ToolCallHookContext: + { proposal: ToolCallPart; call: ToolCallPart; tool? }
+// ToolCallsHookContext: + { calls: readonly ToolCallPart[] }
+```
+
+Hook 类型：`TurnExecutionHook/StepHook/ModelRequestHook/ToolCallHook/BeforeToolCallsHook/ContextProjector`；
+next 契约：最多调用一次并 await（ToolCallHookNext 接收候选 `call: ToolCallPart`）。
+
+### MessageCreatedEvent（MessageTransformer 输入）
+
+```ts
+export interface MessageCreatedEvent extends EventData {
+  readonly durable: true;
+  readonly type: 'message.created';
+  readonly payload: {
+    readonly message: Message & { readonly id: string };  // 变换前完整输入
+    readonly transforms: readonly MessageTransform[];     // 已应用变换（顺序）
+    readonly modelCallId?: string;
+    readonly originMessageId?: string;
+  };
+}
+```
+
+### Conversation 视图输入
+
+```ts
+export interface ConversationSessionData { title?; agent?; model?; options? }
+export interface ConversationSessionDataProps {
+  readonly sessionData: Readonly<ConversationSessionData>;
+  readonly setSessionData: (update: (prev) => ConversationSessionData) => Promise<void>;
+}
+// ComposerViewProps / ConversationViewProps / ComposerEditorViewProps 均继承之
+```
+
+### ComposerEditorInstance（编辑区实例）
+
+```ts
+getContent(): readonly UserMessagePart[];
+setContent(content): void;
+getSession(): Session | undefined;
+onContentChange(listener): () => void;
+readonly editorView;  // 已连接的原生编辑器视图
+```
+
+### 面板视图输入 PanelViewProps
+
+```ts
+{ params; setParams(params); signal; setHeader?(header?: PanelHeader); close?() }
+// PanelHeader: { title?; actions?; menu?: actionGroup[][] }
+```
+
+### WebSearchProvider（自定义搜索后端）
+
+```ts
+search(request: { query; limit?: 1..50 }, signal): Promise<WebSearchResponse>;
+fetch?(request: { url; timeout? }, signal): Promise<WebFetchResult & { providerName }>;
+```
+
+### 模型连接声明链
+
+```ts
+AiSdkModelProviderData extends ModelProviderData {
+  models; baseUrl?; apiKey?; apiFormat?: 'openai_chat_completions'|'openai_responses'|'anthropic_messages';
+  options?: AiSdkConnectionOptions /* { streaming?, extraBody?, extraHeaders? } */
+}
+```
+
+### xdb Database（databaseManager.open 返回值）
+
+```ts
+getId() / getDefinitionPath() / getDefinition() / subscribeDefinition(cb)
+getDataSnapshot(ctx?) / subscribeData(cb, ctx?)
+getData(filter?, ctx?) / getAllData(filter?, ctx?)   // 后者跳过全局过滤
+matchesFilter(item, filter, ctx?) / evaluateFormula(expr, item, ctx?)
+updateSource(source, options?) / activate() / freeze() / flush() / unload()
+// 子 API：XdbFieldApi / XdbGlobalFilterApi / XdbViewApi / XdbRowApi（行编辑等，见 inspect_docs）
+```

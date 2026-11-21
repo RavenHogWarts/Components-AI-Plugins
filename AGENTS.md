@@ -115,9 +115,9 @@ order：官方项 conversation-agent=-1000、conversation-usage=1000；自己取
 | 定时任务 | `jobManager.saveJob({id,title,instruction,schedule})` | schedule 为 iCalendar 文本 |
 | 打开页面 | `panelViewManager.openView(viewId, params, mode)` | mode: current/tab/split/panel |
 
-- **完整类型**：`vendor/ai-api/index.d.ts`（IDE 直接补全）
-- **方法速查**：`docs/api/services.md`；**类型契约**：`docs/api/core-types.md`；**服务总览（72 个）**：`docs/services-overview.md`
-- 需要更新/更深的契约：在应用内让 Creator Agent 调用 `query_services` / `inspect_docs`（按 Service 名或文档 ID，如 `@atra/api#Session`）
+- **完整类型**：`vendor/ai-api/index.d.ts`（45KB，IDE 直接补全；覆盖会话/消息/模型/工具/Hook 上下文/中断/MCP/文件/HTTP/界面扩展/xdb 数据库）
+- **方法速查**：`docs/api/services.md`；**类型契约**：`docs/api/core-types.md`；**服务总览（72 个）**：`docs/services-overview.md`；**内置功能与官方插件、设置格式、用量协议**：`docs/api/builtin-plugins.md`
+- 以上为全量离线快照（2026-11-21），一般开发无需联网/无需应用内 Agent。若应用升级后契约变化，在应用内让 Creator Agent 调 `query_services` / `inspect_docs`（按 Service 名或文档 ID）刷新快照
 
 ## 5. 构建铁律（违反即产物不可用/暴涨）
 
