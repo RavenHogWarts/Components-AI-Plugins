@@ -71,6 +71,7 @@ function useRowContext({
   };
 }
 
+/** 设置页分区：标题 + 内容（+可选页脚），对应官方 xdb--SettingsSection 布局 */
 export function SettingsSection(props: {
   header?: ReactNode;
   footer?: ReactNode;
@@ -121,6 +122,10 @@ const SettingItemControl = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
   },
 );
 
+/**
+ * 设置行容器（官方 xdb--SettingRow 布局）。
+ * 组合用法：SettingItem > Label（标题+描述）+ Control（控件）。
+ */
 export const SettingItem = Object.assign(
   forwardRef<HTMLDivElement, ItemProps>(function SettingItem(props, ref) {
     const { size, orientation = 'horizontal', controlId, error, disabled = false, children, ...rest } = props;
@@ -222,6 +227,7 @@ const TextareaControl = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
   },
 );
 
+/** 单行文本/数字输入行；type="number" 时配合 min/max 使用，值在 onBlur 时提交 */
 export const SettingText = forwardRef<HTMLInputElement, FieldProps & React.InputHTMLAttributes<HTMLInputElement>>(
   function SettingText(props, ref) {
     const { label, description, error, disabled, size, orientation, id, ...rest } = props;
@@ -236,6 +242,7 @@ export const SettingText = forwardRef<HTMLInputElement, FieldProps & React.Input
   },
 );
 
+/** 下拉选择行（select 自动带官方 dropdown 类）；children 为 option 列表 */
 export const SettingSelect = forwardRef<HTMLSelectElement, FieldProps & React.SelectHTMLAttributes<HTMLSelectElement>>(
   function SettingSelect(props, ref) {
     const { label, description, error, disabled, size, orientation, id, children, ...rest } = props;
@@ -252,6 +259,7 @@ export const SettingSelect = forwardRef<HTMLSelectElement, FieldProps & React.Se
   },
 );
 
+/** 多行文本行；默认纵向排列（orientation="vertical"），rows 控制高度 */
 export const SettingTextarea = forwardRef<HTMLTextAreaElement, FieldProps & React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
   function SettingTextarea(props, ref) {
     const { label, description, error, disabled, size, orientation = 'vertical', id, ...rest } = props;
@@ -266,6 +274,10 @@ export const SettingTextarea = forwardRef<HTMLTextAreaElement, FieldProps & Reac
   },
 );
 
+/**
+ * 按钮（官方 xdb--Button 皮肤）。variant：solid/outline/ghost；
+ * data-color/data-shape/data-slot/data-state 与原生按钮属性一致。
+ */
 export const Button = forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & {

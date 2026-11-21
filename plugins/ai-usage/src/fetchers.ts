@@ -72,7 +72,7 @@ async function getJson(
   }
 }
 
-// ---------- GLM ----------
+// ===== GLM =====
 
 function glmWindowKind(type: string): 'tokens' | 'tools' | 'credit' | 'other' {
   if (type === 'TOKENS_LIMIT') return 'tokens';
@@ -142,7 +142,7 @@ export async function fetchGlmReading(http: HttpClient, target: UsageTarget): Pr
   };
 }
 
-// ---------- DeepSeek ----------
+// ===== DeepSeek =====
 
 const DEEPSEEK_AMOUNTS: ReadonlyArray<{ key: string; label: string }> = [
   { key: 'total_balance', label: '总余额' },
@@ -179,7 +179,7 @@ export async function fetchDeepseekReading(http: HttpClient, target: UsageTarget
   };
 }
 
-// ---------- Codex CLI ----------
+// ===== Codex CLI =====
 
 const RPC_TIMEOUT_MS = 10_000;
 

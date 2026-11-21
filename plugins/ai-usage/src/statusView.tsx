@@ -198,15 +198,14 @@ function ProviderCard(props: { status: ProviderStatus; mode: PluginSettings['dis
 
 export function UsageStatusView(props: StatusViewProps) {
   const snapshot = useSyncExternalStore(props.store.subscribe, props.store.getSnapshot);
-  // 设置也走 useSyncExternalStore：设置更新产生新对象引用，立即触发重渲染
-  // （若直接读取，轮询快照未变时 React 会因引用相同跳过渲染，导致显示方式切换不生效）
+  // 设置必须以 useSyncExternalStore 订阅：设置更新产生新对象引用才触发重渲染
   const settings = useSyncExternalStore(props.settingsStore.subscribe, props.settingsStore.getSettings);
   const entries = snapshot.value;
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  // 自愈：清理历史 reload 遗留的孤儿根（以根元素 ref 判定归属）
+  // 清理其他实例遗留的同名根（延迟挂载期间被注销会脱离服务跟踪）；以根 ref 判定归属
   useEffect(() => {
     const own = rootRef.current;
     for (const el of [...document.querySelectorAll('[data-ai-usage-root]')]) {

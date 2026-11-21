@@ -78,7 +78,7 @@ export default class AiUsagePlugin extends Plugin {
         ? [...list, codexTarget(settings.codexCommandPath)]
         : list;
     };
-    // 目标可见性由设置的开关页展示；Codex 是否真正可用由探测决定
+    // Codex 可用性放在 read() 内探测（结果按命令缓存）：避免每次列出目标都 spawn 一次探测进程
     const read = async (): Promise<readonly ProviderStatus[]> => {
       const settings = settingsStore.getSettings();
       const codexReady = await probe(settings.codexCommandPath);

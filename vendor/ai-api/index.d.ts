@@ -1133,7 +1133,7 @@ export interface McpManager {
   ): () => void;
 }
 
-// ==================== internal：对话/Composer/编辑器视图属性 ====================
+// ==================== 对话 / Composer / 编辑器视图属性（internal） ====================
 // 实际命名空间 @obsidian-components/ai-internal-plugins；仅类型参考
 
 /** Conversation 可读写的会话草稿字段 */
@@ -1177,7 +1177,7 @@ export interface ComposerEditorViewProps extends ConversationSessionDataProps {
   readonly onEditorDestroy?: (editor: unknown) => void;
 }
 
-// ==================== internal：Job（定时任务） ====================
+// ==================== Job 定时任务（internal） ====================
 
 export interface Job {
   readonly id: string;
@@ -1330,7 +1330,7 @@ export declare class Plugin {
   onDisposed(_context: ApplicationContext): void | Promise<void>;
   onApplicationReady(): void | Promise<void>;
 }
-// ==================== 第三轮补全：编辑器/视图/搜索/面板/xdb ====================
+// ==================== 编辑器 / 搜索 / 视图扩展（internal） ====================
 
 /** Composer 编辑区实例（扩展与控件借用；只释放自己安装的部分） */
 export interface ComposerEditorInstance {
