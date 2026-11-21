@@ -8,9 +8,12 @@
     "new": "node scripts/new.mjs",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
-    "deploy": "pnpm -r run deploy"
+    "deploy": "pnpm -r run deploy",
+    "lint": "eslint ."
   },
   "devDependencies": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "eslint": "^9.39.0",
+    "typescript-eslint": "^8.46.0"
   }
 }

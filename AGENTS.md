@@ -119,6 +119,15 @@ order：官方项 conversation-agent=-1000、conversation-usage=1000；自己取
 - **方法速查**：`docs/api/services.md`；**类型契约**：`docs/api/core-types.md`；**服务总览（72 个）**：`docs/services-overview.md`；**内置功能与官方插件、设置格式、用量协议**：`docs/api/builtin-plugins.md`
 - 以上为全量离线快照（2026-11-21），一般开发无需联网/无需应用内 Agent。若应用升级后契约变化，在应用内让 Creator Agent 调 `query_services` / `inspect_docs`（按 Service 名或文档 ID）刷新快照
 
+## 4.5 注释规范
+
+**核心原则：注释只回答代码不能回答的问题。**
+
+- 该写：Why（决策理由/约束/坑与违反后果）、导出 API 的契约（用途/参数语义/释放义务）；kit 全部导出必须有 JSDoc
+- 禁止：修复史与过程叙述（属于 commit message）、复述代码的行级注释、死代码、裸 TODO
+- TODO 格式：`// TODO(领域): 说明`；分节统一 `// ===== 名称 =====`；语言用中文
+- 自查：删掉这条注释会损失信息吗？不会则删
+- 机器约束：`pnpm lint`（spaced-comment 强制；其余警告标记禁用；templates 含占位符不参与 lint）
 ## 5. 构建铁律（违反即产物不可用/暴涨）
 
 1. `@obsidian-components/ai-api` **必须保持 external**（加载器运行时提供同一 Plugin 类）。
