@@ -2,19 +2,19 @@
  * @obsidian-components/ai-api 本地类型声明（仅类型，无运行时代码）。
  *
  * 运行时该模块由应用插件加载器提供，构建时必须保持 external。
- * 声明依据官方契约文档整理（docs/api/ 保存了原始文档），
- * 覆盖插件开发完整面：消息/模型/会话/事件/转写/插件生命周期/全部 AiApp 服务。
- * 未取到文档的辅助类型以宽松占位（标注 loose）。
+ * 声明依据官方契约文档整理（docs/api/ 保存原始文档快照）。
+ * 标注「internal」的类型实际属于 @obsidian-components/ai-internal-plugins
+ * 等命名空间，此处统一收纳便于直接引用；运行时不受影响。
  */
 
 // ==================== Summer 基础 ====================
-/** loose：服务名（实际为 keyof Services & string） */
 export type ServiceName = string;
+
 /** loose：服务定义 */
 export interface ServiceDefinition {
   [key: string]: unknown;
 }
-/** 应用上下文（Summer 容器） */
+
 export interface ApplicationContext {
   readonly status: string;
   readonly services: ReadonlyMap<string, unknown>;
@@ -25,16 +25,17 @@ export interface ApplicationContext {
   getService<Name extends ServiceName>(name: Name): unknown;
 }
 
+/** 幂等资源释放；调用方 await 异步清理并上报失败 */
+export type Cleanup = () => void | Promise<void>;
+
 // ==================== 基础数据类型 ====================
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-/** 模型结构化标识：provider 为连接名，model 为服务端模型 id */
 export interface ModelRef {
   readonly provider: string;
   readonly model: string;
 }
 
-/** 单次请求的推理选择；不持久化在模型配置上 */
 export interface ReasoningOptions {
   readonly effort?: string;
   readonly enabled?: boolean;
@@ -90,9 +91,11 @@ export interface EventMessage {
   readonly type: string;
 }
 
+export type EventListener<Message> = (message: Message) => void | Promise<void>;
+
 export interface EventBusApi {
   publish(message: EventMessage | readonly EventMessage[], signal?: AbortSignal): Promise<void>;
-  subscribe(listener: (message: EventMessage) => void): () => void;
+  subscribe(listener: EventListener<EventMessage>): () => void;
   once(predicate: (message: EventMessage) => boolean, signal?: AbortSignal): Promise<EventMessage>;
 }
 
@@ -105,10 +108,12 @@ export interface EventData extends EventMessage {
   readonly payload: unknown;
 }
 
+/** loose */
 export interface MessageInbox {
   [key: string]: unknown;
 }
 
+/** loose */
 export interface InterruptionResolution<Payload = unknown> {
   [key: string]: unknown;
 }
@@ -258,7 +263,7 @@ export interface TranscriptFactory {
   create(session: Session): Transcript;
 }
 
-/** loose：转写投影规则 */
+/** loose */
 export interface TranscriptProjector {
   [key: string]: unknown;
 }
@@ -269,7 +274,6 @@ export interface TranscriptProjectorManager {
   list(): readonly TranscriptProjector[];
   on(type: 'transcript.projectors.change', listener: (event: unknown) => void | Promise<void>): () => void;
 }
-
 // ==================== 模型 ====================
 export type ModelInputType = 'text' | 'image' | 'video' | 'pdf';
 export type ModelOutputType = 'text' | 'image' | 'video';
@@ -293,6 +297,19 @@ export interface ModelData {
   readonly reasoning?: false | ReasoningCapabilities;
 }
 
+/** Provider 报告的模型事实（不含用户字段） */
+export interface ModelDetail {
+  readonly modelId: string;
+  readonly name?: string;
+  readonly contextWindow?: number;
+  readonly inputTokenLimit?: number;
+  readonly outputTokenLimit?: number;
+  readonly supportedInputTypes?: readonly ModelInputType[];
+  readonly supportedOutputTypes?: readonly ModelOutputType[];
+  readonly toolCalling?: boolean;
+  readonly reasoning?: false | ReasoningCapabilities;
+}
+
 export interface ModelChoice {
   readonly ref: ModelRef;
   readonly label: string;
@@ -301,21 +318,36 @@ export interface ModelChoice {
 }
 
 export interface WebSearchInput {
+  readonly query: string;
+  readonly sessionId: string;
+  readonly signal: AbortSignal;
+}
+
+/** loose */
+export interface WebSearchResult {
+  readonly url: string;
   [key: string]: unknown;
 }
+
 export interface WebSearchResponse {
-  [key: string]: unknown;
+  readonly results: readonly WebSearchResult[];
 }
+
+/** loose */
 export interface WebFetchInput {
+  readonly url: string;
+  readonly signal: AbortSignal;
   [key: string]: unknown;
 }
+
+/** loose */
 export interface WebFetchResponse {
   [key: string]: unknown;
 }
 
 export interface ModelRequest {
   readonly messages: readonly Message[];
-  readonly tools?: readonly unknown[];
+  readonly tools?: readonly ToolSpec[];
   readonly reasoning?: ReasoningOptions;
   readonly signal?: AbortSignal;
   readonly sessionId?: string;
@@ -342,31 +374,60 @@ export interface ModelResponse {
   finishReason?: FinishReason;
 }
 
+export interface ModelStreamChunk {
+  delta: (TextPart | ReasoningPart | FilePart)[];
+  usage?: Usage;
+  finishReason?: FinishReason;
+}
+
+/** 可执行模型；generate 为独立调用入口（无需会话） */
 export interface Model {
   readonly data: ModelData;
+  readonly provider: ModelProvider;
   generate(request: ModelRequest): Promise<ModelResponse>;
+  stream?(request: ModelRequest): AsyncIterable<ModelStreamChunk>;
   webSearch?(input: WebSearchInput): Promise<WebSearchResponse>;
   webFetch?(input: WebFetchInput): Promise<WebFetchResponse> | undefined;
 }
 
-/** loose */
+/** 可执行连接：暴露已配置模型并创建 Model */
 export interface ModelProvider {
-  [key: string]: unknown;
+  readonly name: string;
+  readonly modelData: readonly ModelData[];
+  createModel(data: ModelData): Model;
 }
-/** loose */
+
 export interface ModelProviderData {
-  [key: string]: unknown;
+  readonly type: string;
+  readonly name: string;
+  readonly models: readonly ModelData[];
+  readonly options?: unknown;
 }
+
 /** loose */
-export interface ModelProviderFactory {
+export interface ModelProviderFactoryContext {
   [key: string]: unknown;
 }
+
+export interface ModelProviderFactory {
+  readonly type: string;
+  readonly name: string;
+  readonly order?: number;
+  match(data: ModelProviderData): boolean;
+  createProvider(data: ModelProviderData, context: ModelProviderFactoryContext): ModelProvider;
+}
+
+export type ModelProviderEventMap = {
+  'model.provider.added': { readonly type: 'model.provider.added' };
+  'model.provider.updated': { readonly type: 'model.provider.updated' };
+  'model.provider.removed': { readonly type: 'model.provider.removed' };
+};
 
 export interface ModelProviderManagerApi {
   register(factory: ModelProviderFactory): void;
   unregister(type: string): void;
   listProviders(): readonly ModelProviderFactory[];
-  on<T extends string>(eventName: T, callback: (event: unknown) => void | Promise<void>): () => void;
+  on(eventName: string, callback: (event: unknown) => void | Promise<void>): () => void;
   matchProvider(data: ModelProviderData): ModelProviderFactory | undefined;
   createProvider(data: ModelProviderData): ModelProvider;
   listModelProviderInstances(): readonly ModelProvider[];
@@ -376,26 +437,46 @@ export interface ModelProviderManagerApi {
   getModel(ref: ModelRef, overrides?: { readonly maxOutputTokens?: number }): Model;
 }
 
-/** loose：模型连接与配置编辑（详见 docs/api/services.md） */
+/** 持久化连接（baseUrl/apiKey 供凭据复用） */
 export interface ModelConnectionData {
-  [key: string]: unknown;
+  readonly type: string;
+  readonly name: string;
+  readonly baseUrl: string;
+  readonly apiKey?: string;
+  readonly templateId?: string;
+  readonly models?: readonly unknown[];
+  readonly options?: unknown;
+  readonly [key: string]: unknown;
 }
-/** loose */
+
+/** 连接编辑命令输入 */
 export interface ModelConnectionDetails {
-  [key: string]: unknown;
+  readonly type: string;
+  readonly name: string;
+  readonly baseUrl: string;
+  readonly apiKey?: string;
+  readonly templateId?: string;
+  readonly apiFormat?: string;
+  readonly options?: unknown;
 }
-/** loose */
+
 export interface ModelProviderTemplate {
-  [key: string]: unknown;
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly doc?: string;
+  readonly type: string;
+  readonly baseUrl?: string;
+  readonly apiFormat?: string;
+  readonly options?: unknown;
+  readonly models?: readonly ModelDetail[];
 }
-/** loose */
-export interface AiSdkModelData {
-  [key: string]: unknown;
-}
-/** loose */
-export interface ModelDetail {
-  [key: string]: unknown;
-}
+
+export type ModelTemplateEventMap = {
+  'model.template.added': { readonly type: 'model.template.added' };
+  'model.template.updated': { readonly type: 'model.template.updated' };
+  'model.template.removed': { readonly type: 'model.template.removed' };
+};
 
 export interface ModelProviderManager extends ModelProviderManagerApi {
   registerTemplate(template: ModelProviderTemplate): symbol;
@@ -408,15 +489,75 @@ export interface ModelProviderManager extends ModelProviderManagerApi {
   removeConnection(name: string, index?: number): Promise<void>;
   moveConnection(name: string, beforeName?: string): Promise<void>;
   addModel(connection: ModelConnectionData, modelId: string, suggestion?: ModelDetail, signal?: AbortSignal): Promise<ModelRef | undefined>;
-  updateModel(previous: ModelRef, model: AiSdkModelData): Promise<void>;
+  updateModel(previous: ModelRef, model: ModelData & { [key: string]: unknown }): Promise<void>;
   removeModel(ref: ModelRef): Promise<void>;
   listChoices(): readonly ModelChoice[];
 }
 
-// ==================== Hook / 工具 / 消息变换 ====================
-/** loose：Agent 执行钩子（aroundTurnExecution / aroundStep / aroundModelRequest / aroundToolCall / beforeToolCalls / projectContext） */
-export interface AgentHook {
+// ==================== 工具（Agent Tool） ====================
+/** loose：JSON Schema */
+export interface JSONSchema {
   [key: string]: unknown;
+}
+
+export interface ToolSpec {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: JSONSchema;
+}
+
+/** loose */
+export interface ToolContext {
+  [key: string]: unknown;
+}
+
+/** loose */
+export interface ToolExecutionContext {
+  readonly signal?: AbortSignal;
+  [key: string]: unknown;
+}
+
+export interface Tool<Input = unknown> {
+  readonly spec: ToolSpec;
+  readonly deferLoading?: boolean;
+  readonly needsApproval?: boolean;
+  readonly enabledWhen?: (context: ToolContext) => boolean;
+  execute(input: Input, context: ToolExecutionContext): ToolResult | Promise<ToolResult>;
+}
+
+export type ToolEvent =
+  | { readonly type: 'tool.added'; readonly toolName: string }
+  | { readonly type: 'tool.updated'; readonly toolName: string }
+  | { readonly type: 'tool.removed'; readonly toolName: string };
+
+export interface ToolQueryApi {
+  get(name: string): Tool | undefined;
+  list(): readonly Tool[];
+}
+
+export interface ToolManagerApi extends ToolQueryApi {
+  containsTool(agent: AgentData, toolName: string): boolean;
+  register<Input>(tool: Tool<Input>, signal?: AbortSignal): void;
+  unregister(name: string): void;
+  on<Type extends ToolEvent['type']>(
+    eventName: Type,
+    callback: (event: Extract<ToolEvent, { readonly type: Type }>) => void | Promise<void>,
+  ): () => void;
+}
+
+// ==================== Hook / 消息变换 ====================
+/** loose：各上下文与 next 签名见 docs/api/services.md */
+export interface TurnExecutionContext {
+  [key: string]: unknown;
+}
+
+export interface AgentHook {
+  readonly aroundTurnExecution?: (context: TurnExecutionContext, next: () => Promise<void>) => Promise<void>;
+  readonly aroundStep?: (context: unknown, next: () => Promise<void>) => Promise<void>;
+  readonly aroundModelRequest?: (context: unknown, next: () => Promise<ModelResponse>) => Promise<ModelResponse>;
+  readonly aroundToolCall?: (context: unknown, next: () => Promise<ToolResult>) => Promise<ToolResult>;
+  readonly beforeToolCalls?: (context: unknown) => Promise<void>;
+  readonly projectContext?: (events: readonly EventData[], turnId: string, model: ModelData) => Message[];
 }
 
 export interface HookManagerApi {
@@ -430,10 +571,23 @@ export interface HookManagerApi {
   projectContext(events: readonly EventData[], turnId: string, model: ModelData): Message[];
 }
 
-/** loose */
+/** loose：MessageCreatedEvent / MessageTransform */
+export interface MessageCreatedEvent {
+  readonly payload: { readonly message: Message };
+  [key: string]: unknown;
+}
+
+export interface MessageTransform {
+  readonly type: 'append' | 'prepend' | 'replace';
+  readonly content: readonly UserMessagePart[];
+  readonly intent?: string;
+}
+
 export interface MessageTransformer {
   readonly id: string;
-  [key: string]: unknown;
+  readonly intent?: string;
+  match(event: MessageCreatedEvent): boolean;
+  transform(event: MessageCreatedEvent, context: TurnExecutionContext): MessageTransform | undefined | Promise<MessageTransform | undefined>;
 }
 
 export interface MessageTransformerManager {
@@ -442,42 +596,38 @@ export interface MessageTransformerManager {
   list(): readonly MessageTransformer[];
 }
 
-/** loose */
-export interface Tool {
-  readonly name?: string;
-  [key: string]: unknown;
-}
-/** loose */
-export interface ToolEvent {
-  readonly type: string;
-  [key: string]: unknown;
-}
-/** loose */
-export interface ToolQueryApi {
-  [key: string]: unknown;
-}
-
-export interface ToolManagerApi extends ToolQueryApi {
-  containsTool(agent: AgentData, toolName: string): boolean;
-  register<Input>(tool: Tool, signal?: AbortSignal): void;
-  unregister(name: string): void;
-  on<Type extends ToolEvent['type']>(
-    eventName: Type,
-    callback: (event: Extract<ToolEvent, { readonly type: Type }>) => void | Promise<void>,
-  ): () => void;
-}
-
 // ==================== 中断 ====================
 /** loose */
+export type InterruptionStatus = 'pending' | 'resolved';
+
+export interface Interruption<RequestedPayload = unknown, ResolvedPayload = unknown> {
+  readonly requestId: string;
+  readonly sessionId: string;
+  readonly turnId: string;
+  readonly type: string;
+  readonly payload: RequestedPayload;
+  readonly created: number;
+  readonly resolved: { readonly payload?: ResolvedPayload } | undefined;
+  readonly status: InterruptionStatus;
+}
+
+/** loose */
+export interface InterruptionViewProps<App = unknown> {
+  [key: string]: unknown;
+}
+
 export interface InterruptionDefinition<App = unknown> {
   readonly type: string;
-  [key: string]: unknown;
+  readonly view?: ViewRendererConstructor<InterruptionViewProps<App>>;
+  continue?(session: Session, interruptions: readonly Interruption[], signal: AbortSignal): Promise<void>;
+  project?(requests: readonly Interruption[]): readonly Interruption[];
 }
-/** loose */
+
 export interface InterruptionRegistration {
-  [key: string]: unknown;
+  readonly definition: InterruptionDefinition;
+  readonly signal: AbortSignal;
 }
-/** loose */
+
 export interface InterruptionDefinitionEvent {
   readonly type: string;
   [key: string]: unknown;
@@ -489,38 +639,50 @@ export interface InterruptionManager {
   getRegistration(type: string): InterruptionRegistration | undefined;
   get(type: string): InterruptionDefinition | undefined;
   list(): readonly InterruptionDefinition[];
-  listContinuable(interruptions: readonly unknown[]): readonly unknown[];
+  listContinuable(interruptions: readonly Interruption[]): readonly Interruption[];
   on<T extends InterruptionDefinitionEvent['type']>(
     type: T,
     listener: (event: Extract<InterruptionDefinitionEvent, { readonly type: T }>) => void | Promise<void>,
   ): () => void;
 }
 
-// ==================== 其他管理器 ====================
-/** loose：Agent 查询基座 */
+// ==================== Agent 管理 ====================
+export type AgentEvent =
+  | { readonly type: 'agent.added'; readonly id: string }
+  | { readonly type: 'agent.updated'; readonly id: string }
+  | { readonly type: 'agent.removed'; readonly id: string };
+
 export interface AgentManagerApi {
-  [key: string]: unknown;
-}
-/** loose */
-export interface Cleanup {
-  (): Promise<void> | void;
+  create(agent: AgentData): Promise<AgentData>;
+  save(agent: AgentData): Promise<AgentData>;
+  getById(id: string): Promise<AgentData | null>;
+  list(): Promise<AgentData[]>;
+  delete(id: string): Promise<boolean>;
+  on<Type extends AgentEvent['type']>(
+    eventName: Type,
+    listener: (event: Extract<AgentEvent, { readonly type: Type }>) => void | Promise<void>,
+  ): () => void;
 }
 
 export interface AgentManager extends AgentManagerApi {
   register(agent: AgentData, signal?: AbortSignal): Promise<Cleanup>;
 }
-
-/** loose */
+// ==================== 应用数据 ====================
 export interface AppData {
-  [key: string]: unknown;
+  readonly aiBaseFolder: string;
+  readonly defaultAgentId: string;
+  readonly defaultModel?: {
+    readonly ref: ModelRef;
+    readonly reasoning?: ReasoningOptions;
+  };
+  readonly providers: readonly ModelConnectionData[];
 }
-/** loose */
+
+export type AppDataChange = (current: AppData) => AppData | undefined;
+
 export interface AppDataUpdatedEvent {
+  readonly type: 'app.data.updated';
   readonly current: AppData;
-}
-/** loose */
-export interface AppDataChange {
-  (current: AppData): AppData | undefined;
 }
 
 export interface AppDataManager {
@@ -530,17 +692,24 @@ export interface AppDataManager {
   update(change: AppDataChange): Promise<void>;
 }
 
-/** loose */
+// ==================== 文件 ====================
+export type FileType = 'file' | 'directory';
+
 export interface FileStat {
-  [key: string]: unknown;
+  readonly type: FileType;
+  readonly size?: number;
+  readonly mtime?: number;
 }
-/** loose */
+
 export interface FileEntry {
-  [key: string]: unknown;
+  readonly path: string;
+  readonly type: FileType;
 }
-/** loose */
+
 export interface FileChangeEvent {
-  [key: string]: unknown;
+  readonly type: 'create' | 'modify' | 'remove' | 'move';
+  readonly path: string;
+  readonly oldPath?: string;
 }
 
 export interface FileApi {
@@ -561,14 +730,15 @@ export interface FileApi {
   trash(path: string): Promise<void>;
 }
 
+// ==================== i18n ====================
+export interface Localizer<T extends object> {
+  get(): Readonly<T>;
+  dispose(): void;
+}
+
 /** loose */
 export interface Translations<T> {
   [language: string]: T;
-}
-/** loose */
-export interface Localizer<T> {
-  get(): T;
-  dispose(): void;
 }
 
 export interface I18n {
@@ -577,34 +747,70 @@ export interface I18n {
   register<T extends Record<string, unknown>>(namespace: string, translations: Translations<T>): Localizer<T>;
 }
 
+// ==================== 面板 / 视图 ====================
+export interface ViewRenderer {
+  mount(container: HTMLElement): void;
+  unmount?(): void;
+}
+
+export interface ViewRendererConstructor<Props extends object = Record<string, never>> {
+  new (): {
+    mount(container: HTMLElement, props?: Props): void;
+    unmount?(): void;
+  };
+}
+
+/** 可在多个位置独立挂载的视图（composer/conversation/footer 注册件的结构） */
+export interface View<Props extends object = Record<string, never>> {
+  readonly id: string;
+  readonly order?: number;
+  readonly renderer: ViewRendererConstructor<Props>;
+}
+
 /** loose */
-export interface PanelView {
-  readonly id?: string;
+export interface PanelViewProps {
   [key: string]: unknown;
 }
-/** loose */
-export interface ViewParams {
-  [key: string]: unknown;
+
+export interface PanelView extends View<PanelViewProps> {
+  readonly title?: string;
+  readonly icon?: string;
 }
-/** loose */
-export interface PanelViewEvent {
-  readonly type: string;
-  [key: string]: unknown;
-}
+
+export type ViewParams = Readonly<Record<string, JsonValue>>;
+
+export type PanelViewEvent =
+  | { readonly type: 'panel.view.added'; readonly view: PanelView }
+  | { readonly type: 'panel.view.removed'; readonly view: PanelView };
+
+export type PanelOpenMode = 'current' | 'tab' | 'split' | 'panel';
 
 export interface PanelViewManager {
   registerView(view: PanelView): void;
   unregisterView(viewId: string): void;
   getViews(): PanelView[];
   getView(viewId: string): PanelView | undefined;
-  openView(viewId: string, params?: ViewParams, mode?: string): Promise<void>;
+  openView(viewId: string, params?: ViewParams, mode?: PanelOpenMode): Promise<void>;
   on(type: PanelViewEvent['type'], listener: (event: PanelViewEvent) => void | Promise<void>): () => void;
 }
 
+// ==================== Bot ====================
 /** loose */
+export interface BotProviderData {
+  readonly id: string;
+  readonly [key: string]: unknown;
+}
+
+/** loose */
+export interface Bot {
+  readonly [key: string]: unknown;
+}
+
 export interface BotProvider {
-  readonly data?: { readonly id: string; [key: string]: unknown };
-  [key: string]: unknown;
+  readonly data: BotProviderData;
+  list(): Promise<Bot[]>;
+  getById(id: string): Promise<Bot | null>;
+  on(event: 'bot.added' | 'bot.updated' | 'bot.removed', listener: (botId: string) => void): Cleanup;
 }
 
 export interface BotProviderManager {
@@ -614,16 +820,21 @@ export interface BotProviderManager {
   getById(id: string): Promise<BotProvider | null>;
 }
 
-/** loose */
+// ==================== HTTP ====================
 export interface HttpRequest {
   readonly url: string;
-  [key: string]: unknown;
+  readonly method?: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string | ArrayBuffer;
+  readonly signal?: AbortSignal;
+  readonly redirect?: 'manual';
 }
-/** loose */
-export interface HttpResponse<Body> {
+
+export interface HttpResponse<TBody> {
   readonly status: number;
-  readonly headers: Record<string, string>;
-  readonly body: Body;
+  readonly statusText?: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: TBody;
 }
 
 export interface HttpClient {
@@ -636,6 +847,7 @@ export interface HttpClients {
   installStreamClient(client: HttpClient): Cleanup;
 }
 
+// ==================== 其他管理器 ====================
 export interface MarkdownApi {
   render(content: string, container: HTMLElement, signal: AbortSignal): Promise<void>;
 }
@@ -649,15 +861,18 @@ export interface YamlApi {
   stringify(value: JsonValue): string;
 }
 
-/** loose */
 export interface Skill {
-  [key: string]: unknown;
+  readonly name: string;
+  readonly description: string;
+  readonly path: string;
+  readonly author?: string;
+  readonly version?: string;
 }
-/** loose */
-export interface SkillEvent {
-  readonly type: string;
-  [key: string]: unknown;
-}
+
+export type SkillEvent =
+  | { readonly type: 'skill.added'; readonly name: string }
+  | { readonly type: 'skill.updated'; readonly name: string }
+  | { readonly type: 'skill.removed'; readonly name: string };
 
 export interface SkillManager {
   containsSkill(agent: AgentData, skillName: string): boolean;
@@ -671,19 +886,45 @@ export interface SkillManager {
   remove(path: string): Promise<void>;
 }
 
+// ==================== MCP ====================
 /** loose */
-export interface McpServer {
+export interface McpToolPage {
+  readonly tools?: readonly unknown[];
+  readonly nextCursor?: string;
   [key: string]: unknown;
 }
+
 /** loose */
+export interface McpCallResult {
+  readonly content?: readonly unknown[];
+  readonly isError?: boolean;
+  [key: string]: unknown;
+}
+
+export type McpServerStatus = 'connected' | 'disconnected' | 'connecting' | (string & {});
+
 export interface McpServerData {
-  [key: string]: unknown;
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly enabled: boolean;
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
 }
-/** loose */
-export interface McpServerEvent {
-  readonly type: string;
-  [key: string]: unknown;
+
+export interface McpServer {
+  readonly data: McpServerData;
+  readonly status: McpServerStatus;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  listTools(cursor?: string, signal?: AbortSignal): Promise<McpToolPage>;
+  callTool(name: string, args: Readonly<Record<string, unknown>>, signal?: AbortSignal): Promise<McpCallResult>;
 }
+
+export type McpServerEvent =
+  | { readonly type: 'mcp.server.added'; readonly id: string }
+  | { readonly type: 'mcp.server.updated'; readonly id: string }
+  | { readonly type: 'mcp.server.removed'; readonly id: string };
 
 export interface McpManager {
   containsMcpServer(agent: AgentData, serverId: string): boolean;
@@ -696,6 +937,93 @@ export interface McpManager {
     event: T,
     listener: (event: Extract<McpServerEvent, { readonly type: T }>) => void | Promise<void>,
   ): () => void;
+}
+
+// ==================== internal：对话/Composer/编辑器视图属性 ====================
+// 实际命名空间 @obsidian-components/ai-internal-plugins；仅类型参考
+
+/** loose */
+export interface ConversationSessionDataProps {
+  [key: string]: unknown;
+}
+
+export interface ComposerViewProps extends ConversationSessionDataProps {
+  readonly aiApp: AiApp;
+  readonly session?: Session;
+  readonly editor?: unknown;
+  readonly onSubmit: (content: UserMessagePart[]) => Promise<void>;
+  readonly defaultContent?: UserMessagePart[];
+}
+
+export interface ConversationViewProps extends ConversationSessionDataProps {
+  readonly aiApp: AiApp;
+  readonly session?: Session;
+  readonly defaultContent?: UserMessagePart[];
+  readonly onSessionIdChange: (sessionId: string) => void;
+}
+
+export interface ComposerEditorViewProps extends ConversationSessionDataProps {
+  readonly aiApp: AiApp;
+  readonly session?: Session;
+  readonly onSubmit?: (content: UserMessagePart[]) => void | Promise<void>;
+  readonly disabled?: boolean;
+  readonly placeholder?: string;
+  readonly defaultContent?: readonly UserMessagePart[];
+  readonly content?: readonly UserMessagePart[];
+  readonly onContentChange?: (content: readonly UserMessagePart[]) => void;
+  readonly onEditorReady?: (editor: unknown) => void;
+  readonly onEditorDestroy?: (editor: unknown) => void;
+}
+
+// ==================== internal：Job（定时任务） ====================
+
+export interface Job {
+  readonly id: string;
+  readonly title: string;
+  readonly agentId?: string;
+  readonly sessionId?: string;
+  readonly instruction: string;
+  /** iCalendar 文本（本地 DTSTART + IANA TZID；省略 RRULE 行则只跑一次） */
+  readonly schedule: string;
+}
+
+export type JobExecutionStatus = 'pending' | 'paused' | 'completed' | 'failed' | (string & {});
+
+export interface JobExecution {
+  readonly id: string;
+  readonly jobId: string;
+  readonly scheduledAt?: number;
+  readonly createdAt: number;
+  readonly sessionId?: string;
+  readonly status: JobExecutionStatus;
+  readonly error?: string;
+}
+
+/** loose：事件载荷 */
+export interface JobEventMap {
+  'job.added': { readonly jobId: string };
+  'job.updated': { readonly jobId: string };
+  'job.removed': { readonly jobId: string };
+  'jobs.reset': Record<string, never>;
+  'job.execution.created': { readonly executionId: string; readonly jobId: string };
+  'job.execution.started': { readonly executionId: string; readonly jobId: string };
+  'job.execution.paused': { readonly executionId: string; readonly jobId: string };
+  'job.execution.resumed': { readonly executionId: string; readonly jobId: string };
+  'job.execution.completed': { readonly executionId: string; readonly jobId: string };
+  'job.execution.failed': { readonly executionId: string; readonly jobId: string };
+  'job.execution.cancelled': { readonly executionId: string; readonly jobId: string };
+  'job.execution.unavailable': { readonly executionId: string; readonly jobId: string };
+}
+
+export interface JobManager {
+  listJobs(): Promise<readonly Job[]>;
+  saveJob(job: Job): Promise<void>;
+  deleteJob(jobId: string): Promise<void>;
+  resetJobs(): Promise<void>;
+  executeJob(jobId: string): Promise<string>;
+  listJobExecutions(jobId?: string): Promise<readonly JobExecution[]>;
+  getJobExecution(executionId: string): Promise<JobExecution | undefined>;
+  on<Type extends keyof JobEventMap>(eventName: Type, listener: (event: JobEventMap[Type]) => void | Promise<void>): () => void;
 }
 
 // ==================== 插件管理器 ====================
@@ -723,21 +1051,10 @@ export interface PluginInfo {
   readonly errors: readonly PluginError[];
 }
 
-export interface PluginAddedEvent {
-  readonly type: 'plugin.added';
-  readonly pluginName: string;
-  readonly current: PluginInfo;
-}
-export interface PluginUpdatedEvent {
-  readonly type: 'plugin.updated';
-  readonly pluginName: string;
-  readonly current: PluginInfo;
-}
-export interface PluginRemovedEvent {
-  readonly type: 'plugin.removed';
-  readonly pluginName: string;
-}
-export type PluginEvent = PluginAddedEvent | PluginUpdatedEvent | PluginRemovedEvent;
+export type PluginEvent =
+  | { readonly type: 'plugin.added'; readonly pluginName: string; readonly current: PluginInfo }
+  | { readonly type: 'plugin.updated'; readonly pluginName: string; readonly current: PluginInfo }
+  | { readonly type: 'plugin.removed'; readonly pluginName: string };
 
 export interface PluginManager {
   list(): readonly PluginInfo[];
@@ -756,20 +1073,12 @@ export interface PluginManager {
 }
 
 // ==================== 插件上下文与基类 ====================
-export interface ViewRenderer {
-  mount(container: HTMLElement): void;
-  unmount?(): void;
-}
-
-export interface ViewRendererConstructor {
-  new (): ViewRenderer;
-}
-
 /** 当前插件加载的 JSON 数据访问；数据在卸载/重载后保留 */
 export interface PluginDataApi {
   readData(): Promise<unknown>;
   writeData(value: unknown): Promise<void>;
 }
+
 export interface AiApp {
   readonly applicationContext: ApplicationContext;
   readonly i18n: I18n;
@@ -801,12 +1110,12 @@ export interface PluginContext extends PluginDataApi {
   setSettingsView(renderer: ViewRendererConstructor | undefined): void;
   registerService(service: ServiceDefinition): Promise<void>;
   unregisterService(name: ServiceName): Promise<void>;
-  getService<Name extends ServiceName>(name: Name): unknown;
+  getService(name: ServiceName): unknown;
 }
 
 /**
  * 插件基类。default export 一个具体子类。
- * 生命周期钩子带 ApplicationContext 参数（可省略不写）。
+ * 生命周期钩子带 ApplicationContext 参数（子类覆盖时可省略）。
  */
 export declare class Plugin {
   static readonly inject: readonly ServiceName[];

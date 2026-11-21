@@ -258,3 +258,165 @@ getService(name): unknown;        // 可选能力；undefined 表示未解析
 readData(): Promise<JsonValue | undefined>;
 writeData(value: JsonValue): Promise<void>;   // 插件 data.json，卸载重载后保留
 ```
+---
+
+## 补全契约（2026-11-21 第二轮拉取）
+
+### View（composer/conversation/footer 注册件的通用结构）
+
+```ts
+export interface View<Props extends object = never> {
+  readonly id: string;
+  readonly order?: number;
+  readonly renderer: ViewRendererConstructor<Props>;
+}
+```
+
+### AgentManager（CRUD + 只读注册）
+
+```ts
+create(agent: AgentData): Promise<AgentData>;
+save(agent: AgentData): Promise<AgentData>;
+getById(id): Promise<AgentData | null>;
+list(): Promise<AgentData[]>;
+delete(id): Promise<boolean>;
+on('agent.added'|'agent.updated'|'agent.removed', cb): () => void;
+register(agent: AgentData, signal?): Promise<Cleanup>;  // 插件加载域只读注册
+```
+
+### Agent Tool 注册（toolManager.register）
+
+```ts
+export interface ToolSpec {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: JSONSchema;
+}
+
+export interface Tool<Input = unknown> {
+  readonly spec: ToolSpec;
+  readonly deferLoading?: boolean;      // 默认 true：经 call_tools 间接暴露
+  readonly needsApproval?: boolean;     // false 跳过审批
+  readonly enabledWhen?: (context: ToolContext) => boolean;
+  execute(input: Input, context: ToolExecutionContext): ToolResult | Promise<ToolResult>;
+}
+```
+
+### AppData / 应用设置
+
+```ts
+export interface AppData {
+  readonly aiBaseFolder: string;
+  readonly defaultAgentId: string;
+  readonly defaultModel?: { readonly ref: ModelRef; readonly reasoning?: ReasoningOptions };
+  readonly providers: readonly ModelConnectionData[];
+}
+update(change: (current: AppData) => AppData | undefined): Promise<void>;  // 同步不可变替换
+```
+
+### HTTP
+
+```ts
+export interface HttpRequest {
+  readonly url: string;
+  readonly method?: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string | ArrayBuffer;
+  readonly signal?: AbortSignal;
+  readonly redirect?: 'manual';
+}
+export interface HttpResponse<TBody> { status; statusText?; headers; body: TBody }
+```
+
+### 模型连接（凭据复用）
+
+```ts
+export interface ModelConnectionData {
+  readonly type: string; readonly name: string;
+  readonly baseUrl: string;        // 识别供应商（如 api.z.ai / api.deepseek.com）
+  readonly apiKey?: string;        // 复用给用量查询等
+  readonly templateId?: string; readonly models?; readonly options?;
+}
+```
+
+### 中断（Interruption）
+
+```ts
+export interface Interruption<P, R> {
+  readonly requestId; sessionId; turnId; type; payload: P; created;
+  readonly resolved: { payload?: R } | undefined;
+  readonly status: 'pending' | 'resolved';
+}
+export interface InterruptionDefinition {
+  readonly type: string;
+  readonly view?: ViewRendererConstructor<InterruptionViewProps>;
+  continue?(session, interruptions, signal): Promise<void>;
+  project?(requests): readonly Interruption[];
+}
+```
+
+### MCP 服务器
+
+```ts
+export interface McpServerData {
+  readonly id: string; readonly name: string; readonly enabled: boolean;
+  readonly url: string; readonly headers: Readonly<Record<string, string>>;
+}
+export interface McpServer {
+  readonly data: McpServerData; readonly status;
+  connect(): Promise<void>; disconnect(): Promise<void>;
+  listTools(cursor?, signal?): Promise<McpToolPage>;
+  callTool(name, args, signal?): Promise<McpCallResult>;
+}
+```
+
+### Composer / Conversation / 编辑器视图输入（internal）
+
+```ts
+export interface ComposerViewProps {
+  readonly aiApp: AiApp; readonly session?: Session; readonly editor?: ComposerEditorInstance;
+  readonly onSubmit: (content: UserMessagePart[]) => Promise<void>;
+  readonly defaultContent?: UserMessagePart[];
+}
+export interface ConversationViewProps {
+  readonly aiApp; session?; defaultContent?;
+  readonly onSessionIdChange: (sessionId: string) => void;
+}
+// ComposerEditorViewProps：编辑器自有实例（onContentChange/onEditorReady/onSubmit 等）
+```
+
+### Job（定时任务，internal）
+
+```ts
+export interface Job {
+  readonly id; title; agentId?; sessionId?; instruction;
+  readonly schedule: string;   // iCalendar：DTSTART;TZID=Asia/Shanghai:... \n RRULE:FREQ=...
+}
+// JobExecution: { id; jobId; scheduledAt?; createdAt; sessionId?; status; error? }
+// 事件：job.added/updated/removed、jobs.reset、job.execution.created/started/paused/
+//       resumed/completed/failed/cancelled/unavailable
+```
+
+### Hook 注册结构
+
+```ts
+export interface AgentHook {
+  readonly aroundTurnExecution?: TurnExecutionHook;
+  readonly aroundStep?: StepHook;
+  readonly aroundModelRequest?: ModelRequestHook;
+  readonly aroundToolCall?: ToolCallHook;
+  readonly beforeToolCalls?: BeforeToolCallsHook;
+  readonly projectContext?: ContextProjector;
+}
+// hookManager.register(hook, ownerId, signal, order?) → symbol
+```
+
+### MessageTransformer
+
+```ts
+export interface MessageTransformer {
+  readonly id: string; readonly intent?: string;
+  match(event: MessageCreatedEvent): boolean;
+  transform(event, context): { type: 'append'|'prepend'|'replace'; content } | undefined;
+}
+```
