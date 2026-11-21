@@ -10,13 +10,40 @@
 // ==================== Summer 基础 ====================
 export type ServiceName = string;
 
-/** loose：服务定义 */
-export interface ServiceDefinition {
-  [key: string]: unknown;
+/** 服务定义：注册即提供类，容器注入依赖并运行生命周期 */
+export interface ServiceDefinition<Name extends ServiceName = ServiceName, Inject extends readonly ServiceName[] = readonly []> {
+  readonly provide: Name;
+  readonly description?: string;
+  readonly doc?: string;
+  readonly docId?: string;
+  readonly inject?: Inject;
+  new (dependencies: unknown): unknown;
+}
+
+export type ContextStatus = 'initialization' | 'loading' | 'loaded' | 'unloading' | 'unloaded';
+
+export type ServiceStatus = 'unresolved' | 'resolving' | 'resolved' | 'resolve_failed' | 'disposing';
+
+export declare class ServiceWrapper {
+  readonly name: ServiceName;
+  readonly description: string | undefined;
+  readonly doc: string | undefined;
+  readonly docId: string | undefined;
+  readonly dependencies: readonly ServiceName[];
+  get status(): ServiceStatus;
+  get error(): unknown;
+}
+
+/** Summer 服务生命周期钩子（Plugin 实现同一契约） */
+export interface ServiceHook {
+  onResolving?(context: ApplicationContext): void | Promise<void>;
+  onResolved?(context: ApplicationContext): void | Promise<void>;
+  onDisposing?(context: ApplicationContext): void | Promise<void>;
+  onDisposed?(context: ApplicationContext): void | Promise<void>;
 }
 
 export interface ApplicationContext {
-  readonly status: string;
+  readonly status: ContextStatus;
   readonly services: ReadonlyMap<string, unknown>;
   load(): Promise<void>;
   unload(): Promise<void>;
@@ -80,8 +107,8 @@ export interface CreateSessionRequest {
 }
 
 export type SessionManagerEvent =
-  | { readonly type: 'session.added'; readonly id: string }
-  | { readonly type: 'session.updated'; readonly id: string }
+  | { readonly type: 'session.added'; readonly sessionId: string }
+  | { readonly type: 'session.updated'; readonly sessionId: string; readonly status: SessionStatus }
   | { readonly type: 'session.removed'; readonly id: string };
 
 // ==================== 事件总线 ====================
@@ -108,14 +135,30 @@ export interface EventData extends EventMessage {
   readonly payload: unknown;
 }
 
-/** loose */
-export interface MessageInbox {
-  [key: string]: unknown;
+/** 队列消息副本（message.id 即条目 ID） */
+export interface InboxItem {
+  message: UserMessage & { readonly id: string };
+  created: number;
 }
 
-/** loose */
+/** 会话待发队列（读写均为副本；编辑不启动执行） */
+export interface MessageInbox {
+  readonly items: readonly InboxItem[];
+  load(): Promise<void>;
+  list(): Promise<InboxItem[]>;
+  take(messageId?: string): Promise<InboxItem | null>;
+  getById(id: string): Promise<InboxItem | null>;
+  deleteById(id: string): Promise<InboxItem | null>;
+  add(item: InboxItem): Promise<InboxItem>;
+  move(messageId: string, beforeId?: string): Promise<void>;
+  save(messages: InboxItem[]): Promise<void>;
+  clear(): Promise<void>;
+}
+
+/** 按 requestId 关联的业务答复 */
 export interface InterruptionResolution<Payload = unknown> {
-  [key: string]: unknown;
+  readonly requestId: string;
+  readonly payload?: Payload;
 }
 
 export interface Session {
@@ -263,9 +306,27 @@ export interface TranscriptFactory {
   create(session: Session): Transcript;
 }
 
-/** loose */
+/** 转写投影规则（事件 → 节点树；Transcript 拥有 cursor 与节点） */
 export interface TranscriptProjector {
-  [key: string]: unknown;
+  readonly order: number;
+  matches(cursor: number, events: readonly (EventData | MessageDelta)[], nodes: readonly TranscriptNode[]): boolean;
+  project(cursor: number, events: readonly (EventData | MessageDelta)[], nodes: readonly TranscriptNode[]): readonly TranscriptNode[];
+}
+
+/** 首个完整快照被接受前的临时增量 */
+export interface MessageDelta {
+  readonly durable: false;
+  readonly type: 'message.delta';
+  readonly sessionId: string;
+  readonly turnId: string;
+  readonly modelCallId: string;
+  readonly stepIndex?: number;
+  readonly timestamp: number;
+  readonly messageId: string;
+  readonly delta: readonly Part[];
+  readonly discarded?: true;
+  readonly usage?: Usage;
+  readonly finishReason?: FinishReason;
 }
 
 export interface TranscriptProjectorManager {
@@ -333,11 +394,10 @@ export interface WebSearchResponse {
   readonly results: readonly WebSearchResult[];
 }
 
-/** loose */
 export interface WebFetchInput {
   readonly url: string;
+  readonly sessionId: string;
   readonly signal: AbortSignal;
-  [key: string]: unknown;
 }
 
 /** 从页面取回的文本 */
@@ -506,15 +566,16 @@ export interface ToolSpec {
   readonly parameters: JSONSchema;
 }
 
-/** loose */
 export interface ToolContext {
-  [key: string]: unknown;
+  readonly session: Session;
+  readonly agent: AgentData;
+  readonly model: Model;
 }
 
-/** loose */
-export interface ToolExecutionContext {
-  readonly signal?: AbortSignal;
-  [key: string]: unknown;
+export interface ToolExecutionContext extends TurnExecutionContext {
+  readonly tools: ToolQueryApi;
+  readonly eventId: string;
+  readonly toolCallId: string;
 }
 
 export interface Tool<Input = unknown> {
@@ -546,24 +607,32 @@ export interface ToolManagerApi extends ToolQueryApi {
 }
 
 // ==================== Hook / 消息变换 ====================
-/** loose：Session 侧上下文与工具执行器 */
+/** Session 提供给执行/功能操作的共享能力 */
 export interface SessionContext {
-  [key: string]: unknown;
+  readonly session: Session;
+  readonly agentManager: AgentManagerApi;
+  readonly modelProviderManager: ModelProviderManagerApi;
+  readonly toolManager: ToolManagerApi;
+  readonly hookManager: HookManagerApi;
+  readonly messageTransformerManager: MessageTransformerManager;
+  readonly eventBus: EventBusApi;
 }
-/** loose */
+
+/** 一个逻辑 Step（0 起索引；恢复保留索引） */
 export interface Step {
-  [key: string]: unknown;
+  readonly index: number;
 }
-/** loose */
+
+/** 执行已接受的工具提案；Turn 恢复时复用已保存调用与结果 */
 export interface ToolExecutor {
-  [key: string]: unknown;
+  execute(call: ToolCallPart, proposalEventId: string, context: TurnExecutionContext): Promise<ToolResult>;
 }
-/** loose */
+
+/** 待解决的业务请求（requestId 会话内唯一，不复用） */
 export interface InterruptionRequest<Payload = unknown> {
   readonly requestId: string;
   readonly type: string;
   readonly payload: Payload;
-  [key: string]: unknown;
 }
 
 /** 一次推进活动的固定选择与借用能力 */
@@ -673,8 +742,7 @@ export interface MessageTransformerManager {
 }
 
 // ==================== 中断 ====================
-/** loose */
-export type InterruptionStatus = 'pending' | 'resolved';
+export type InterruptionStatus = 'interrupted' | 'resolved';
 
 export interface Interruption<RequestedPayload = unknown, ResolvedPayload = unknown> {
   readonly requestId: string;
@@ -817,10 +885,11 @@ export interface Localizer<T extends object> {
   dispose(): void;
 }
 
-/** loose */
-export interface Translations<T> {
-  [language: string]: T;
+/** loose：字典文本契约 */
+export interface Texts<T> {
+  [key: string]: unknown;
 }
+export type Translations<T extends Texts<T>> = { readonly en: T } & Readonly<Record<string, T>>;
 
 export interface I18n {
   readonly language: string;
@@ -880,15 +949,45 @@ export interface PanelViewManager {
 }
 
 // ==================== Bot ====================
-/** loose */
 export interface BotProviderData {
   readonly id: string;
-  readonly [key: string]: unknown;
+  readonly name: string;
+  readonly description?: string;
+  readonly icon?: string;
 }
 
-/** loose */
+export interface TextBotMessagePart {
+  readonly type: 'text';
+  readonly content: string;
+}
+export interface FileBotMessagePart {
+  readonly type: 'file';
+  readonly name?: string;
+  readonly mediaType?: string;
+  readonly data: string | ArrayBuffer;
+}
+export interface ImageBotMessagePart {
+  readonly type: 'image';
+  readonly name?: string;
+  readonly mediaType?: string;
+  readonly data: string | ArrayBuffer;
+}
+export type BotMessagePart = TextBotMessagePart | FileBotMessagePart | ImageBotMessagePart;
+export interface BotMessage {
+  readonly id: string;
+  readonly timestamp?: number;
+  readonly parts: readonly BotMessagePart[];
+}
+
+/** 插件拥有的消息端点 */
 export interface Bot {
-  readonly [key: string]: unknown;
+  readonly id: string;
+  readonly botProviderId: string;
+  connect(signal: AbortSignal): Promise<void>;
+  disconnect(): Promise<void>;
+  post(message: BotMessage): Promise<void>;
+  on(event: 'message', listener: (message: BotMessage) => void): Cleanup;
+  getSessionId(): Promise<string | undefined>;
 }
 
 export interface BotProvider {
@@ -972,21 +1071,31 @@ export interface SkillManager {
 }
 
 // ==================== MCP ====================
-/** loose */
+export interface McpToolDescriptor {
+  readonly name: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly inputSchema: Record<string, unknown>;
+  readonly outputSchema?: Record<string, unknown>;
+  readonly annotations?: Readonly<Record<string, unknown>>;
+}
+/** loose：MCP 内容块（ContentBlock） */
+export interface McpContent {
+  [key: string]: unknown;
+}
+
 export interface McpToolPage {
-  readonly tools?: readonly unknown[];
+  readonly tools: readonly McpToolDescriptor[];
   readonly nextCursor?: string;
-  [key: string]: unknown;
 }
 
-/** loose */
 export interface McpCallResult {
-  readonly content?: readonly unknown[];
+  readonly content: readonly McpContent[];
+  readonly structuredContent?: Readonly<Record<string, unknown>>;
   readonly isError?: boolean;
-  [key: string]: unknown;
 }
 
-export type McpServerStatus = 'connected' | 'disconnected' | 'connecting' | (string & {});
+export type McpServerStatus = 'connecting' | 'connected' | 'disconnected';
 
 export interface McpServerData {
   readonly id: string;
@@ -1243,11 +1352,19 @@ export type ComposerEditorViewEvent =
 /** 为当前编辑区构建 CodeMirror 扩展 */
 export type EditorExtension = (editor: ComposerEditorInstance) => unknown;
 
+/** 面板挂载提供的操作 */
+export interface PanelAction {
+  readonly id: string;
+  readonly title: string;
+  readonly icon?: string;
+  readonly run: () => void | Promise<void>;
+}
+
 /** 面板标题与操作 */
 export interface PanelHeader {
   readonly title?: string;
-  readonly actions?: readonly unknown[];
-  readonly menu?: readonly (readonly unknown[])[];
+  readonly actions?: readonly PanelAction[];
+  readonly menu?: readonly (readonly PanelAction[])[];
 }
 
 /** Web 搜索提供者（web_search/web_fetch 工具后端） */
@@ -1287,17 +1404,41 @@ export interface AiSdkConnectionOptions extends HttpRequestOverrides {
 }
 
 /** 转写节点视图（对话面板自定义节点渲染/命令） */
-export interface NodeViewProps {
-  [key: string]: unknown;
+export type NodeViewContext<Context = unknown> = Context & {
+  readonly nodeViews: readonly NodeViewDefinition<Context>[];
+  readonly nodeActions?: readonly NodeActionDefinition<Context>[];
+};
+
+export interface NodeActionProps<Context = unknown> extends NodeViewProps<Context> {
+  readonly readOnly: boolean;
+  readonly onError: (error: unknown) => void;
 }
-/** loose：节点视图定义 */
-export interface NodeViewDefinition {
-  [key: string]: unknown;
+
+export interface NodeViewProps<Context = unknown> {
+  readonly node: TranscriptNode;
+  readonly context: NodeViewContext<Context>;
 }
-/** loose：节点命令定义 */
-export interface NodeActionDefinition {
-  readonly id?: string;
-  [key: string]: unknown;
+
+export interface NodeViewDefinition<Context = unknown> {
+  readonly type: string;
+  readonly view: ViewRendererConstructor<NodeViewProps<Context>> | View<NodeViewProps<Context>>;
+  matches?(node: TranscriptNode): boolean;
+}
+
+export interface NodeActionDefinition<Context = unknown> {
+  readonly id: string;
+  readonly order?: number;
+  readonly view: ViewRendererConstructor<NodeActionProps<Context>>;
+  matches(node: TranscriptNode, context: TranscriptViewContext): boolean;
+}
+
+/** 节点视图/命令从 Transcript 借用的上下文 */
+export interface TranscriptViewContext {
+  readonly aiApp: AiApp;
+  readonly session: Session;
+  readonly readOnly: boolean;
+  readonly selectedTurnId?: string;
+  selectBranch(turnId: string): void;
 }
 export interface TranscriptView {
   registerTurnProgress(item: View<NodeViewProps>): void;
@@ -1311,38 +1452,163 @@ export interface TranscriptView {
   onNode(type: string, listener: (event: unknown) => void | Promise<void>): () => void;
 }
 
-// ==================== xdb 数据库（.xdb 文件编程访问） ====================
+// ==================== xdb 数据库（.xdb 文件编程访问，全量） ====================
 
-/** loose：字段/视图/行/全局过滤子 API */
-export interface XdbFieldApi { [key: string]: unknown; }
-export interface XdbGlobalFilterApi { [key: string]: unknown; }
-export interface XdbViewApi { [key: string]: unknown; }
-export interface XdbRowApi {
+export interface DatabaseFieldDefinition {
+  name: string;
+  type?: DatabaseFieldType;
+  formula?: string;
+  options?: Record<string, unknown>;
+}
+
+export interface DatabaseAvailableField {
+  name: string;
+  label?: string;
+  description?: string;
+  type?: DatabaseFieldType;
+}
+
+export type DatabaseFieldType = 'text' | 'number' | 'boolean' | 'date' | 'datetime' | 'select' | 'multi-select' | 'button' | string;
+
+export interface DatabaseRow {
+  id: string;
+  $item: Record<string, unknown>;
+}
+
+/** loose：视图类型/样式/分组/排序等子定义见 inspect_docs（@obsidian-components/xdb-api#DatabaseViewDefinition 引用链） */
+export interface DatabaseViewDefinition {
+  id: string;
+  name: string;
+  type: string;
+  parentId?: string | null;
+  icon?: string;
+  visibleFields?: string[];
+  filter?: FilterItem;
+  limit?: number;
+  options?: Record<string, unknown>;
   [key: string]: unknown;
 }
-/** loose */
-export interface FilterItem {
-  [key: string]: unknown;
+
+export interface DatabaseViewData {
+  name: string;
+  type: string;
+  visibleFields: DatabaseFieldDefinition[];
+  allFields: DatabaseFieldDefinition[];
+  groups: readonly unknown[];
+  options?: Record<string, unknown>;
+  summary?: Record<string, string>;
 }
-/** loose */
-export interface DatabaseContext {
-  [key: string]: unknown;
+
+export interface RootGroupDefinition {
+  type?: string;
+  options?: unknown;
+  style?: unknown;
 }
-/** loose */
-export interface DatabaseData {
-  readonly rows: readonly { readonly id: string; readonly [field: string]: unknown }[];
+
+export interface FilterItemBase {
+  id: string;
+  type: string;
+}
+export type FilterJoin = 'and' | 'or';
+export interface FilterGroup extends FilterItemBase {
+  type: 'group';
+  join: FilterJoin;
+  items: FilterItem[];
+}
+export type FilterLeafItem = FilterItemBase;
+
+export type DatabaseCreateRowInput = Readonly<{
+  viewId: string;
+  values?: Readonly<Record<string, unknown>>;
+}>;
+/** loose：创建的条目结构 */
+export interface DatabaseCreatedItem {
   readonly [key: string]: unknown;
 }
-/** loose */
-export interface DatabaseDefinitionSnapshot {
+export type DatabaseCreateRowResult = Readonly<{ rowId?: string; item: DatabaseCreatedItem }>;
+export interface DatabaseDeleteRowsOptions {
+  readonly signal?: AbortSignal;
   [key: string]: unknown;
 }
-/** loose */
+export type DatabaseDeleteRowsFailedItem = { rowId: string; message?: string };
+export type DatabaseDeleteRowsResult = {
+  status: 'success' | 'cancelled';
+  processed: number;
+  total: number;
+  deletedIds: string[];
+  failedItems: DatabaseDeleteRowsFailedItem[];
+  remainingIds: string[];
+};
+export interface DatabaseDefinition {
+  source?: string;
+  fields: DatabaseFieldDefinition[];
+  filter?: FilterItem;
+  views?: DatabaseViewDefinition[];
+  rootGroup?: RootGroupDefinition;
+  options?: Record<string, unknown>;
+}
+
+export type FilterItem = FilterGroup | FilterLeafItem;
+
+export type DatabaseContext = { readonly thisFilePath?: string | null };
+
+export interface DatabaseData {
+  fields: DatabaseFieldDefinition[];
+  rows: DatabaseRow[];
+}
+
+export type DatabaseDefinitionSnapshot = Readonly<DatabaseDefinition>;
+
 export interface DatabaseDataSnapshot {
-  [key: string]: unknown;
+  readonly data: DatabaseData;
+  readonly definition: DatabaseDefinitionSnapshot;
 }
+
 export type DatabaseSubscriber = () => void;
 export type DatabaseUnsubscribe = () => void;
+
+export interface XdbFieldApi {
+  createField(field: DatabaseFieldDefinition): Promise<void>;
+  renameField(oldName: string, newName: string): Promise<void>;
+  updateField(name: string, field: DatabaseFieldDefinition): Promise<void>;
+  deleteFields(names: string[]): Promise<void>;
+  deleteField(name: string): Promise<void>;
+  getAvailableFields(): DatabaseAvailableField[];
+  getFieldValueSuggestions(fieldName: string): Promise<string[]>;
+  supportsFieldType(type: DatabaseFieldType, fieldName?: string): boolean;
+  getFieldType(fieldName: string): { type: DatabaseFieldType; isBuiltIn: boolean };
+  canUpdateCell(fieldName: string): boolean;
+  canDeleteCell(fieldName: string): boolean;
+}
+
+export interface XdbGlobalFilterApi {
+  updateFilter(filter: FilterItem | undefined): Promise<void>;
+}
+
+export interface XdbViewApi {
+  createView(view: DatabaseViewDefinition): Promise<void>;
+  createViews(views: DatabaseViewDefinition[]): Promise<void>;
+  getViewsByParentId(parentId: string | null): DatabaseViewDefinition[];
+  updateView(view: DatabaseViewDefinition): Promise<void>;
+  updateViews(views: DatabaseViewDefinition[]): Promise<void>;
+  moveView(viewId: string, targetParentId: string | null): Promise<void>;
+  deleteView(id: string): Promise<void>;
+  reorderViews(fromIndex: number, toIndex: number): Promise<void>;
+  updateRootGroup(rootGroup: RootGroupDefinition): Promise<void>;
+  getViewData(id: string, query?: { text: string }, context?: DatabaseContext): Promise<DatabaseViewData | null>;
+  getAllViewData(context?: DatabaseContext): Promise<DatabaseViewData[]>;
+}
+
+export interface XdbRowApi {
+  createRow?(input: DatabaseCreateRowInput): Promise<DatabaseCreateRowResult>;
+  updateRow(id: string, values: Record<string, unknown>): Promise<string>;
+  updateCell(rowId: string, fieldName: string, value: unknown): Promise<string>;
+  moveRow?(rowId: string, targetFolder: string): Promise<string>;
+  deleteRow(id: string): Promise<void>;
+  deleteRows(ids: string[], options?: DatabaseDeleteRowsOptions): Promise<DatabaseDeleteRowsResult>;
+  getRowLink(rowId: string): { href: string; label: string } | null;
+  resolveRowIdReference?(row: DatabaseRow, fieldName: string): string | null;
+}
 
 export interface Database extends XdbFieldApi, XdbGlobalFilterApi, XdbViewApi, XdbRowApi {
   getId(): string;
