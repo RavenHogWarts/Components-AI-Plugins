@@ -198,8 +198,10 @@ function ProviderCard(props: { status: ProviderStatus; mode: PluginSettings['dis
 
 export function UsageStatusView(props: StatusViewProps) {
   const snapshot = useSyncExternalStore(props.store.subscribe, props.store.getSnapshot);
+  // 设置也走 useSyncExternalStore：设置更新产生新对象引用，立即触发重渲染
+  // （若直接读取，轮询快照未变时 React 会因引用相同跳过渲染，导致显示方式切换不生效）
+  const settings = useSyncExternalStore(props.settingsStore.subscribe, props.settingsStore.getSettings);
   const entries = snapshot.value;
-  const settings = props.settingsStore.getSettings();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
