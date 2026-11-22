@@ -10,8 +10,8 @@ interface TocViewProps {
   getSettings: () => PluginSettings;
 }
 
-/** 悬浮卡半高估算（像素），用于把卡片垂直夹在会话区内 */
-const TIP_HALF = 56;
+/** 悬浮卡最大高度估算（像素），用于把卡片底部夹在会话区内 */
+const TIP_EST = 170;
 /** 每个刻度的间距（像素），与 ZCode 原生 turn navigator 一致 */
 const TICK_STEP = 10;
 
@@ -21,7 +21,7 @@ function clamp(value: number, min: number, max: number): number {
 
 interface HoverState {
   turnId: string;
-  /** 刻度中心在会话区内的纵向位置（像素，相对根元素顶部） */
+  /** 刻度按钮顶部在会话区内的纵向位置（像素，相对根元素顶部） */
   top: number;
 }
 
@@ -140,7 +140,8 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
     if (!root) return;
     const r = el.getBoundingClientRect();
     const rootR = root.getBoundingClientRect();
-    setHovered({ turnId, top: r.top + r.height / 2 - rootR.top });
+    // 卡片顶部对齐刻度按钮顶部（按钮高 10px，取按钮上缘）
+    setHovered({ turnId, top: r.top - rootR.top });
   };
   const openFromTip = (turnId: string): void => {
     window.clearTimeout(closeTimer.current);
@@ -164,10 +165,13 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
   }
 
   const hoveredEntry = hovered ? entries.find((entry) => entry.turnId === hovered.turnId) : undefined;
-  const tipY =
-    hovered && railHeight > 0
-      ? clamp(hovered.top, TIP_HALF, railHeight - TIP_HALF)
-      : 0;
+  // 底部夹取基于会话区高度：卡片顶部对齐刻度按钮，仅防止底部溢出会话区
+  const convEl = rootRef.current?.closest('.xdb--Conversation') as HTMLElement | null;
+  const convHeight = convEl?.clientHeight ?? railHeight;
+  const rootTop = rootRef.current ? rootRef.current.getBoundingClientRect().top : 0;
+  const convTop = convEl ? convEl.getBoundingClientRect().top : 0;
+  const maxTipY = Math.max(0, convHeight - (rootTop - convTop) - TIP_EST);
+  const tipY = hovered && railHeight > 0 ? clamp(hovered.top, 0, maxTipY) : 0;
 
   return (
     <div className={`xdb--SessionToc xdb--SessionToc--${settings.side}`} ref={rootRef}>
@@ -195,14 +199,19 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
       {hoveredEntry && (
         <div
           className="xdb--SessionTocTip"
-          style={{ top: tipY, maxHeight: Math.max(80, railHeight - 32) }}
+          style={{ top: tipY, maxHeight: Math.max(80, convHeight - 16) }}
           onMouseEnter={() => openFromTip(hoveredEntry.turnId)}
           onMouseLeave={scheduleClose}
         >
           <span className="xdb--SessionTocTipIndex">{hoveredEntry.index}</span>
-          <span className="xdb--SessionTocTipText" style={{ WebkitLineClamp: settings.previewLines }}>
-            {hoveredEntry.preview || '（空输入）'}
-          </span>
+          <div className="xdb--SessionTocTipBody">
+            <span className="xdb--SessionTocTipText" style={{ WebkitLineClamp: settings.previewLines }}>
+              {hoveredEntry.preview || '（空输入）'}
+            </span>
+            <span className="xdb--SessionTocTipReply" style={{ WebkitLineClamp: settings.replyLines }}>
+              {hoveredEntry.reply || '（无回复）'}
+            </span>
+          </div>
         </div>
       )}
     </div>

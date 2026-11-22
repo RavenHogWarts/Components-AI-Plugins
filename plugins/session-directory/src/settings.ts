@@ -5,12 +5,15 @@ export interface PluginSettings {
   side: 'left' | 'right';
   /** 每条目录项显示的用户输入预览行数 */
   previewLines: number;
+  /** 每条目录项显示的助手回复预览行数 */
+  replyLines: number;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   enabled: true,
   side: 'left',
   previewLines: 3,
+  replyLines: 3,
 };
 
 function asNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -27,5 +30,6 @@ export function loadSettings(raw: unknown): PluginSettings {
     enabled: source.enabled !== false,
     side,
     previewLines: asNumber(source.previewLines, DEFAULT_SETTINGS.previewLines, 1, 10),
+    replyLines: asNumber(source.replyLines, DEFAULT_SETTINGS.replyLines, 1, 10),
   };
 }

@@ -96,11 +96,10 @@
   opacity: 0.9;
 }
 
-/* 悬浮预览卡：贴在刻度条旁，垂直随刻度位置并夹取在会话区内 */
+/* 悬浮预览卡：顶部对齐刻度按钮位置，垂直夹取在会话区内 */
 .xdb--SessionTocTip {
   position: absolute;
-  width: 280px;
-  transform: translateY(-50%);
+  width: 300px;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -127,22 +126,22 @@
 @keyframes xdb--SessionTocFadeLeft {
   from {
     opacity: 0;
-    transform: translate(-3px, -50%);
+    transform: translate(-3px, 0);
   }
   to {
     opacity: 1;
-    transform: translate(0, -50%);
+    transform: translate(0, 0);
   }
 }
 
 @keyframes xdb--SessionTocFadeRight {
   from {
     opacity: 0;
-    transform: translate(3px, -50%);
+    transform: translate(3px, 0);
   }
   to {
     opacity: 1;
-    transform: translate(0, -50%);
+    transform: translate(0, 0);
   }
 }
 
@@ -156,6 +155,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 卡片主体：用户输入 + 回复块 */
+.xdb--SessionTocTipBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .xdb--SessionTocTipText {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -164,4 +172,17 @@
   line-height: 1.5;
   word-break: break-word;
   color: var(--text-normal, #dddddd);
+}
+
+/* 回复内容块：左引线 + 弱化色，独立于用户输入 */
+.xdb--SessionTocTipReply {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+  color: var(--text-muted, #8b8b8b);
+  padding-left: 8px;
+  border-left: 2px solid var(--background-modifier-border, #333333);
 }

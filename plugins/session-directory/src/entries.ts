@@ -1,6 +1,6 @@
 import type { TranscriptNode } from '@obsidian-components/ai-api';
 
-/** 会话内目录的一条：对应一个轮次（turn）及其用户输入 */
+/** 会话内目录的一条：对应一个轮次（turn）及其用户输入与回复 */
 export interface TocEntry {
   /** 轮次 ID，用于拼出 DOM 的 data-node-key 值 */
   readonly turnId: string;
@@ -8,6 +8,8 @@ export interface TocEntry {
   readonly key: string;
   /** 该轮次用户输入的纯文本预览 */
   readonly preview: string;
+  /** 该轮次助手回复的纯文本预览（取首个文本回复） */
+  readonly reply: string;
   /** 轮次状态（completed / running / cancelled） */
   readonly status?: string;
   /** 1 起始的轮次序号 */
@@ -33,7 +35,7 @@ function partsText(content: unknown): string {
 }
 
 /**
- * 深度遍历转写节点，按顺序为每个 turn 收集用户输入文本。
+ * 深度遍历转写节点，按顺序为每个 turn 收集用户输入文本与首个助手回复文本。
  * 实测节点结构：turn → (message | system_prompt | step*)，step → message；
  * message 节点 payload 为 { message: { role, content } }；DOM 用 data-node-key="turn:<turnId>" 标记。
  */
@@ -48,7 +50,8 @@ export function buildTocEntries(nodes: readonly TranscriptNode[]): TocEntry[] {
       const turnId = typeof payload?.turnId === 'string' ? payload.turnId : node.key;
 
       let preview = '';
-      const collectUserText = (current: TranscriptNode): void => {
+      let reply = '';
+      const collectText = (current: TranscriptNode): void => {
         if (current.type === 'message') {
           const message = (
             current.payload as { message?: { role?: unknown; content?: unknown } } | undefined
@@ -56,16 +59,20 @@ export function buildTocEntries(nodes: readonly TranscriptNode[]): TocEntry[] {
           if (message?.role === 'user') {
             const text = partsText(message.content);
             if (preview.length === 0 && text.length > 0) preview = text;
+          } else if (message?.role === 'assistant') {
+            const text = partsText(message.content);
+            if (reply.length === 0 && text.length > 0) reply = text;
           }
         }
-        for (const child of current.children) collectUserText(child);
+        for (const child of current.children) collectText(child);
       };
-      collectUserText(node);
+      collectText(node);
 
       entries.push({
         turnId,
         key: `turn:${turnId}`,
         preview,
+        reply,
         status: typeof payload?.status === 'string' ? payload.status : undefined,
         index,
       });

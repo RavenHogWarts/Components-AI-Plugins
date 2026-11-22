@@ -46,6 +46,15 @@ export function SessionDirectorySettingsView(props: SessionDirectoryViewProps) {
         value={settings.previewLines}
         onBlur={(event) => apply({ previewLines: Number(event.currentTarget.value) })}
       />
+      <SettingText
+        label="回复预览行数"
+        description="悬浮卡中显示的各轮次助手回复内容行数"
+        type="number"
+        min={1}
+        max={10}
+        value={settings.replyLines}
+        onBlur={(event) => apply({ replyLines: Number(event.currentTarget.value) })}
+      />
       <SettingItem>
         <SettingItem.Label>恢复默认</SettingItem.Label>
         <SettingItem.Control>
