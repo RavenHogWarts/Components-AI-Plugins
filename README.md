@@ -133,6 +133,13 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 - 下载：[live-session-title-v0.2.1.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/live-session-title-v0.2.1/live-session-title-v0.2.1.zip)
 - 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=live-session-title-v*)
 
+### session-toc（v0.1.0）
+
+在对话窗口侧边提供会话内目录（TOC）：悬浮预览各轮次用户输入内容，点击快速滚动跳转到对应轮次。
+
+- 下载：[session-toc-v0.1.0.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/session-toc-v0.1.0/session-toc-v0.1.0.zip)
+- 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=session-toc-v*)
+
 ### turn-loading-style（v0.2.1）
 
 自定义对话处理中的加载动画与提示文字
