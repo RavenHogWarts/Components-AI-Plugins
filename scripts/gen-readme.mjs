@@ -36,14 +36,14 @@ const block = plugins
     const tag = `${p.name}-v${p.version}`;
     const zip = `${p.name}-v${p.version}.zip`;
     const url = `${base}/releases/download/${tag}/${zip}`;
-    const badge = `https://img.shields.io/github/v/release/${owner}/${repo}?filter=${p.name}-v*`;
+    // 单个徽标：显示最新发布版本，点击跳转下载 zip
+    const badge = `https://img.shields.io/github/v/release/${owner}/${repo}?filter=${p.name}-v*&label=${encodeURIComponent('下载')}`;
     return [
       `### ${p.name}（v${p.version}）`,
       '',
       p.description,
       '',
-      `- 下载：[${zip}](${url})`,
-      `- 最新发布：![v](${badge})`,
+      `[![下载 ${zip}](${badge})](${url})`,
       '',
     ].join('\n');
   })
