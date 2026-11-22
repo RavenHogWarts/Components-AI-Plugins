@@ -130,11 +130,11 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 
 [![下载 live-session-title-v0.2.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=live-session-title-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/live-session-title-v0.2.1/live-session-title-v0.2.1.zip)
 
-### session-toc（v0.1.0）
+### session-toc（v0.1.1）
 
 在对话窗口侧边提供会话内目录（TOC）：悬浮预览各轮次用户输入内容，点击快速滚动跳转到对应轮次。
 
-[![下载 session-toc-v0.1.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=session-toc-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/session-toc-v0.1.0/session-toc-v0.1.0.zip)
+[![下载 session-toc-v0.1.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=session-toc-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/session-toc-v0.1.1/session-toc-v0.1.1.zip)
 
 ### turn-loading-style（v0.2.1）
 
