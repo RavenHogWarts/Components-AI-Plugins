@@ -33,7 +33,11 @@ export async function deployPlugin(pluginDir, { silent = false } = {}) {
   fs.copyFileSync(entry, path.join(target, 'xdb-ai', 'main.js'));
 
   const styles = path.join(pluginDir, 'dist', 'xdb-ai', 'styles.css');
-  if (fs.existsSync(styles)) {
+  const stylesSource = path.join(pluginDir, 'styles.css');
+  // 优先取插件根目录的静态 styles.css，其次取构建产物内的
+  if (fs.existsSync(stylesSource)) {
+    fs.copyFileSync(stylesSource, path.join(target, 'xdb-ai', 'styles.css'));
+  } else if (fs.existsSync(styles)) {
     fs.copyFileSync(styles, path.join(target, 'xdb-ai', 'styles.css'));
   }
 

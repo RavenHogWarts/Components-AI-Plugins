@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "turn-loading-style",
+  "description": "自定义对话处理中的加载动画与提示文字",
+  "version": "0.1.0",
+  "extensions": {
+    "xdb-ai": {},
+    "io.github.vran-dev.xdb": {
+      "displayName": "加载指示器",
+      "platforms": ["all"]
+    }
+  }
+}

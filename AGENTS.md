@@ -17,7 +17,7 @@ docs/                  离线 API 参考：services-overview.md（72 服务）�
 ```
 
 - 目标库路径在根目录 `.env`：`VAULT_ROOT=E:\WorkSpace\Obsidian\Scriptorium`
-- 部署产物：`<VAULT_ROOT>/.agents/plugins/<name>/{plugin.json, xdb-ai/main.js}`
+- 部署产物：`<VAULT_ROOT>/.agents/plugins/<name>/{plugin.json, xdb-ai/main.js}`；静态样式放插件根目录 `styles.css`（部署自动复制，加载期生效、卸载自动移除）
 
 ## 2. 环境与命令
 
