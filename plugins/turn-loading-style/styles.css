@@ -3,9 +3,6 @@
 /* ===== 通用：隐藏原生波浪条（预设自身负责提供替代图标） ===== */
 body[data-ai-turn-loading="spinner"] .xdb--TurnLoading .xdb--WaveBars,
 body[data-ai-turn-loading="braille"] .xdb--TurnLoading .xdb--WaveBars,
-body[data-ai-turn-loading="dots"] .xdb--TurnLoading .xdb--WaveBars,
-body[data-ai-turn-loading="pulse"] .xdb--TurnLoading .xdb--WaveBars,
-body[data-ai-turn-loading="bar"] .xdb--TurnLoading .xdb--WaveBars,
 body[data-ai-turn-loading="star"] .xdb--TurnLoading .xdb--WaveBars,
 body[data-ai-turn-loading="hidden"] .xdb--TurnLoading .xdb--WaveBars {
   display: none;
@@ -13,7 +10,7 @@ body[data-ai-turn-loading="hidden"] .xdb--TurnLoading .xdb--WaveBars {
 
 /* ===== 旋转圆环 ===== */
 body[data-ai-turn-loading="spinner"] .xdb--TurnLoading::before {
-  content: '';
+  content: "";
   flex: none;
   width: 0.9em;
   height: 0.9em;
@@ -26,53 +23,15 @@ body[data-ai-turn-loading="spinner"] .xdb--TurnLoading::before {
 
 /* ===== 盲文旋转 ===== */
 body[data-ai-turn-loading="braille"] .xdb--TurnLoading::before {
-  content: '⠋';
+  content: "⠋";
   flex: none;
   margin-right: 6px;
   animation: ai-tls-braille 0.8s steps(1) infinite;
 }
 
-/* ===== 三圆点起伏 ===== */
-body[data-ai-turn-loading="dots"] .xdb--TurnLoading::before {
-  content: '';
-  flex: none;
-  width: 4px;
-  height: 4px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 7px 0 0 currentColor, -7px 0 0 currentColor;
-  animation: ai-tls-dots 0.9s ease-in-out infinite;
-}
-
-/* ===== 呼吸圆点 ===== */
-body[data-ai-turn-loading="pulse"] .xdb--TurnLoading::before {
-  content: '';
-  flex: none;
-  width: 0.7em;
-  height: 0.7em;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: ai-tls-pulse 1.1s ease-in-out infinite;
-}
-
-/* ===== 扫动进度条 ===== */
-body[data-ai-turn-loading="bar"] .xdb--TurnLoading::before {
-  content: '';
-  flex: none;
-  width: 1.6em;
-  height: 2px;
-  margin-right: 6px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, currentColor, transparent);
-  background-size: 200% 100%;
-  animation: ai-tls-bar 1s linear infinite;
-}
-
 /* ===== 星形旋转 ===== */
 body[data-ai-turn-loading="star"] .xdb--TurnLoading::before {
-  content: '✦';
+  content: "✦";
   flex: none;
   margin-right: 6px;
   display: inline-block;
@@ -85,7 +44,7 @@ body[data-ai-turn-text="1"] .xdb--TurnLoading > span {
   color: transparent;
 }
 body[data-ai-turn-text="1"] .xdb--TurnLoading > span::after {
-  content: var(--ai-turn-loading-text, '正在处理…');
+  content: var(--ai-turn-loading-text, "正在处理…");
   position: absolute;
   inset: 0;
   color: var(--text-normal, currentColor);
@@ -93,28 +52,36 @@ body[data-ai-turn-text="1"] .xdb--TurnLoading > span::after {
 
 /* ===== 动画 ===== */
 @keyframes ai-tls-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes ai-tls-braille {
-  0% { content: '⠋'; }
-  12% { content: '⠙'; }
-  25% { content: '⠹'; }
-  37% { content: '⠸'; }
-  50% { content: '⠼'; }
-  62% { content: '⠴'; }
-  75% { content: '⠦'; }
-  87% { content: '⠧'; }
-  100% { content: '⠇'; }
-}
-@keyframes ai-tls-dots {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-@keyframes ai-tls-pulse {
-  0%, 100% { transform: scale(0.7); opacity: 0.4; }
-  50% { transform: scale(1.15); opacity: 1; }
-}
-@keyframes ai-tls-bar {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    content: "⠋";
+  }
+  12% {
+    content: "⠙";
+  }
+  25% {
+    content: "⠹";
+  }
+  37% {
+    content: "⠸";
+  }
+  50% {
+    content: "⠼";
+  }
+  62% {
+    content: "⠴";
+  }
+  75% {
+    content: "⠦";
+  }
+  87% {
+    content: "⠧";
+  }
+  100% {
+    content: "⠇";
+  }
 }

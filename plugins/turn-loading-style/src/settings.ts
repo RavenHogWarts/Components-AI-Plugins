@@ -2,9 +2,6 @@ export type LoadingPreset =
   | 'default'
   | 'spinner'
   | 'braille'
-  | 'dots'
-  | 'pulse'
-  | 'bar'
   | 'star'
   | 'hidden';
 
@@ -21,9 +18,6 @@ const PRESETS: readonly LoadingPreset[] = [
   'default',
   'spinner',
   'braille',
-  'dots',
-  'pulse',
-  'bar',
   'star',
   'hidden',
 ];

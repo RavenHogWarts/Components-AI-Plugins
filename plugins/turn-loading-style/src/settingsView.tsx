@@ -13,9 +13,6 @@ const PRESET_OPTIONS: ReadonlyArray<{ value: LoadingPreset; label: string }> = [
   { value: 'default', label: '应用默认（波浪条）' },
   { value: 'spinner', label: '旋转圆环' },
   { value: 'braille', label: '盲文旋转 ⠋' },
-  { value: 'dots', label: '三圆点起伏' },
-  { value: 'pulse', label: '呼吸圆点' },
-  { value: 'bar', label: '扫动进度条' },
   { value: 'star', label: '星形旋转 ✦' },
   { value: 'hidden', label: '隐藏图标（仅文字）' },
 ];
