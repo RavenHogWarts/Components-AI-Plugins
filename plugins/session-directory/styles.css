@@ -1,7 +1,7 @@
 /* ===== 会话目录快速跳转（session-directory）=====
    作用域限定在 .xdb--SessionToc*，避免影响应用全局。
    根元素绝对定位覆盖对话区（.xdb--Conversation 为 position:relative 包含块），
-   pointer-events:none 让出下层交互；仅手柄与悬浮面板开启 pointer-events。 */
+   pointer-events:none 让出下层交互；仅刻度条与悬浮卡开启 pointer-events。 */
 
 .xdb--SessionToc {
   position: absolute;
@@ -14,143 +14,129 @@
   display: none;
 }
 
-/* 收缩态 + 悬浮面板的共用悬停区（含二者间隙，保证移入移出连续不闪烁） */
-.xdb--SessionTocHover {
+/* 通高迷你地图刻度条 */
+.xdb--SessionTocRail {
   position: absolute;
-  top: 50%;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  pointer-events: auto;
+  background: var(--background-secondary, rgba(0, 0, 0, 0.04));
+  cursor: default;
+}
+
+.xdb--SessionToc--left .xdb--SessionTocRail {
+  left: 0;
+  border-right: 1px solid var(--background-modifier-border, #333333);
+}
+
+.xdb--SessionToc--right .xdb--SessionTocRail {
+  right: 0;
+  border-left: 1px solid var(--background-modifier-border, #333333);
+}
+
+/* 每个轮次一个刻度（点击跳转，悬浮预览） */
+.xdb--SessionTocTick {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 10px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.xdb--SessionTocTick::before {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 2px;
+  background: var(--text-faint, #999999);
+  border-radius: 1px;
+  transition: background 0.12s ease, width 0.12s ease;
+}
+
+.xdb--SessionTocTick:hover::before,
+.xdb--SessionTocTick--active::before {
+  background: var(--text-accent, #5b9bd5);
+  width: 12px;
+}
+
+.xdb--SessionTocTick--running::before {
+  background: var(--color-green, #4caf50);
+}
+
+/* 悬浮预览卡：贴在刻度条旁，垂直随刻度位置并夹取在会话区内 */
+.xdb--SessionTocTip {
+  position: absolute;
+  width: 280px;
   transform: translateY(-50%);
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  overflow: hidden;
   pointer-events: auto;
-}
-
-.xdb--SessionToc--right .xdb--SessionTocHover {
-  right: 0;
-  flex-direction: row-reverse;
-}
-
-.xdb--SessionToc--left .xdb--SessionTocHover {
-  left: 0;
-  flex-direction: row;
-}
-
-/* 收缩态：短条手柄 */
-.xdb--SessionTocRail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 16px;
-  padding: 8px 3px;
-  color: var(--text-muted, #8b8b8b);
-  background: var(--background-secondary, #1e1e1e);
-  border-radius: 999px;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.xdb--SessionTocRail:hover {
-  color: var(--text-normal, #dddddd);
-  background: var(--background-modifier-hover, #2a2a2a);
-}
-
-.xdb--SessionTocGrip {
-  display: flex;
-  align-items: center;
-}
-
-.xdb--SessionTocCount {
-  font-size: 10px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 悬浮目录面板 */
-.xdb--SessionTocPanel {
-  width: 300px;
-  overflow: auto;
   background: var(--background-primary, #1b1b1b);
   border: 1px solid var(--background-modifier-border, #333333);
-  border-radius: 10px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
   animation: xdb--SessionTocFade 0.12s ease-out;
 }
 
-@keyframes xdb--SessionTocFade {
-  from {
-    opacity: 0;
-    transform: translateX(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.xdb--SessionToc--left .xdb--SessionTocTip {
+  left: 16px;
+  animation-name: xdb--SessionTocFadeRight;
 }
 
-.xdb--SessionToc--left .xdb--SessionTocPanel {
+.xdb--SessionToc--right .xdb--SessionTocTip {
+  right: 16px;
   animation-name: xdb--SessionTocFadeLeft;
 }
 
 @keyframes xdb--SessionTocFadeLeft {
   from {
     opacity: 0;
-    transform: translateX(-3px);
+    transform: translate(-3px, -50%);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate(0, -50%);
   }
 }
 
-.xdb--SessionTocHeader {
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted, #8b8b8b);
+@keyframes xdb--SessionTocFadeRight {
+  from {
+    opacity: 0;
+    transform: translate(3px, -50%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
 }
 
-.xdb--SessionTocList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.xdb--SessionTocItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 6px 8px;
-  text-align: left;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--text-normal, #dddddd);
-  font: inherit;
-  cursor: pointer;
-}
-
-.xdb--SessionTocItem:hover {
-  background: var(--background-modifier-hover, #2a2a2a);
-}
-
-.xdb--SessionTocIndex {
+.xdb--SessionTocTipIndex {
   flex: none;
   min-width: 18px;
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.5;
   color: var(--text-muted, #8b8b8b);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.xdb--SessionTocPreview {
+.xdb--SessionTocTipText {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 12px;
   line-height: 1.5;
   word-break: break-word;
+  color: var(--text-normal, #dddddd);
 }

@@ -10,34 +10,46 @@ interface TocViewProps {
   getSettings: () => PluginSettings;
 }
 
-/** 收缩态手柄上的列表图标（内联 SVG，避免额外图标依赖） */
-const GRIP_ICON = (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <line x1="8" y1="6" x2="21" y2="6" />
-    <line x1="8" y1="12" x2="21" y2="12" />
-    <line x1="8" y1="18" x2="21" y2="18" />
-    <line x1="3" y1="6" x2="3.01" y2="6" />
-    <line x1="3" y1="12" x2="3.01" y2="12" />
-    <line x1="3" y1="18" x2="3.01" y2="18" />
-  </svg>
-);
+/** 悬浮卡半高估算（像素），用于把卡片垂直夹在会话区内 */
+const TIP_HALF = 56;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
 
 function TocView({ session, factory, getSettings }: TocViewProps) {
   const settings = getSettings();
   const [entries, setEntries] = useState<TocEntry[]>([]);
-  const [open, setOpen] = useState(false);
-  const [maxHeight, setMaxHeight] = useState(420);
+  /** turnId → 该轮次在对话内容中的相对位置（0..1） */
+  const [positions, setPositions] = useState<Record<string, number>>({});
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [railHeight, setRailHeight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const entriesRef = useRef<TocEntry[]>([]);
+  const closeTimer = useRef<number | undefined>(undefined);
+
+  entriesRef.current = entries;
+
+  // 从 DOM 读取每个轮次的相对位置：刻度按内容位置比例分布（迷你地图）
+  const recompute = (): void => {
+    const root = rootRef.current;
+    if (!root) return;
+    const conv = root.closest('.xdb--Conversation') as HTMLElement | null;
+    const transcript = conv?.querySelector('.xdb--Transcript') as HTMLElement | null;
+    if (!conv || !transcript) return;
+    const list = (transcript.querySelector('.xdb--TranscriptList') as HTMLElement | null) ?? transcript;
+    const listTop = list.getBoundingClientRect().top;
+    const total = list.scrollHeight;
+    const next: Record<string, number> = {};
+    for (const entry of entriesRef.current) {
+      const el = conv.querySelector(`[data-node-key="${CSS.escape(entry.key)}"]`);
+      if (el) {
+        const top = el.getBoundingClientRect().top - listTop;
+        next[entry.turnId] = total > 0 ? clamp(top / total, 0, 1) : 0;
+      }
+    }
+    setPositions(next);
+  };
 
   // 跟随当前会话创建转写，内容更新时重建目录条目；切换会话自动重建
   useEffect(() => {
@@ -62,16 +74,41 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
     };
   }, [session, factory]);
 
-  // 悬浮面板高度不超过对话区，避免被 .xdb--Conversation 的 overflow 裁切
+  // 内容更新后稍候（等 DOM 布局稳定）再重算刻度位置
+  useEffect(() => {
+    const id = window.setTimeout(recompute, 80);
+    return () => window.clearTimeout(id);
+  }, [entries]);
+
+  // 测量会话区高度，尺寸变化时重算（含后台面板重新可见时的布局重建）
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const update = () => setMaxHeight(Math.max(160, root.clientHeight - 24));
+    const update = () => {
+      setRailHeight(root.clientHeight);
+      recompute();
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(root);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(closeTimer.current);
+    },
+    [],
+  );
+
+  const open = (turnId: string): void => {
+    window.clearTimeout(closeTimer.current);
+    setHovered(turnId);
+  };
+  const scheduleClose = (): void => {
+    window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setHovered(null), 160);
+  };
 
   const scrollToTurn = (turnId: string): void => {
     const doc = rootRef.current?.ownerDocument ?? document;
@@ -85,42 +122,40 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
     );
   }
 
+  const hoveredEntry = hovered ? entries.find((entry) => entry.turnId === hovered) : undefined;
+  const tipY =
+    hoveredEntry && railHeight > 0
+      ? clamp((positions[hoveredEntry.turnId] ?? 0) * railHeight, TIP_HALF, railHeight - TIP_HALF)
+      : 0;
+
   return (
     <div className={`xdb--SessionToc xdb--SessionToc--${settings.side}`} ref={rootRef}>
-      <div
-        className="xdb--SessionTocHover"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        <div className="xdb--SessionTocRail" role="button" tabIndex={-1} aria-label="会话目录">
-          <span className="xdb--SessionTocGrip">{GRIP_ICON}</span>
-          <span className="xdb--SessionTocCount">{entries.length}</span>
-        </div>
-        {open && (
-          <div className="xdb--SessionTocPanel" style={{ maxHeight }}>
-            <div className="xdb--SessionTocHeader">会话目录 · {entries.length} 轮</div>
-            <div className="xdb--SessionTocList">
-              {entries.map((entry) => (
-                <button
-                  key={entry.turnId}
-                  type="button"
-                  className="xdb--SessionTocItem"
-                  onClick={() => scrollToTurn(entry.turnId)}
-                  title={entry.preview || '（空输入）'}
-                >
-                  <span className="xdb--SessionTocIndex">{entry.index}</span>
-                  <span
-                    className="xdb--SessionTocPreview"
-                    style={{ WebkitLineClamp: settings.previewLines }}
-                  >
-                    {entry.preview || '（空输入）'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="xdb--SessionTocRail" onMouseLeave={scheduleClose}>
+        {entries.map((entry) => (
+          <button
+            key={entry.turnId}
+            type="button"
+            className={`xdb--SessionTocTick${entry.status === 'running' ? ' xdb--SessionTocTick--running' : ''}${hovered === entry.turnId ? ' xdb--SessionTocTick--active' : ''}`}
+            style={{ top: `${(positions[entry.turnId] ?? 0) * 100}%` }}
+            onMouseEnter={() => open(entry.turnId)}
+            onClick={() => scrollToTurn(entry.turnId)}
+            aria-label={`跳转到第 ${entry.index} 轮`}
+          />
+        ))}
       </div>
+      {hoveredEntry && (
+        <div
+          className="xdb--SessionTocTip"
+          style={{ top: tipY, maxHeight: Math.max(80, railHeight - 32) }}
+          onMouseEnter={() => open(hoveredEntry.turnId)}
+          onMouseLeave={scheduleClose}
+        >
+          <span className="xdb--SessionTocTipIndex">{hoveredEntry.index}</span>
+          <span className="xdb--SessionTocTipText" style={{ WebkitLineClamp: settings.previewLines }}>
+            {hoveredEntry.preview || '（空输入）'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ export interface PluginSettings {
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   enabled: true,
-  side: 'right',
+  side: 'left',
   previewLines: 3,
 };
 
