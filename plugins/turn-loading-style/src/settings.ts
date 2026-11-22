@@ -11,9 +11,9 @@ export type LoadingPreset =
 export type AnimSize = 'sm' | 'md' | 'lg';
 
 export const ANIM_SIZE_EM: Record<AnimSize, string> = {
-  sm: '1.1em',
-  md: '1.3em',
-  lg: '1.6em',
+  sm: '1.8em',
+  md: '2.3em',
+  lg: '2.8em',
 };
 
 export interface PluginSettings {
