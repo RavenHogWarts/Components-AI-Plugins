@@ -12,7 +12,7 @@ plugins/<name>/        插件工程（只放业务代码）
 packages/ai-plugin-kit 共享包（设置 UI/存储/弹层/轮询/格式化/视图挂载）
 vendor/ai-api/         @obsidian-components/ai-api 类型声明（npm 未发布；运行时由插件加载器提供）
 templates/plugin/      新插件模板
-scripts/               build-kit（统一构建）/ deploy（复制到目标库）/ new（脚手架）
+scripts/               build-kit（统一构建）/ deploy（复制到目标库）/ release（打包 zip）/ new（脚手架）
 docs/                  离线 API 参考：services-overview.md（72 服务）、api/core-types.md、api/services.md
 ```
 
@@ -28,6 +28,7 @@ pnpm install                                  # 首次
 pnpm new my-plugin 显示名 描述                # 生成 plugins/my-plugin（含版本/扩展元数据/kit 依赖）
 pnpm --filter my-plugin typecheck             # tsc --noEmit
 pnpm --filter my-plugin deploy                # 类型检查 + 生产构建 + 复制到目标库
+pnpm --filter my-plugin release               # 类型检查 + 生产构建 + 打包为分发 zip
 pnpm --filter my-plugin watch                 # 源码变更自动构建并部署
 pnpm --filter my-plugin build:dev             # 调试构建（带 inline sourcemap）
 ```
@@ -151,6 +152,7 @@ order：官方项 conversation-agent=-1000、conversation-usage=1000；自己取
 ## 7. 验证清单（每个插件发布前）
 
 - [ ] `typecheck` 零错误；`deploy` 成功
+- [ ] `release` 成功，且 zip 内容与部署产物一致（含可选 `styles.css`/`assets/`）
 - [ ] 应用内：启用后 `loaded` 且 `errors: []`
 - [ ] 核心功能实际触发一次（不要只看加载状态）
 - [ ] 禁用 → 自有注册（footer 项/订阅/定时器）确实释放

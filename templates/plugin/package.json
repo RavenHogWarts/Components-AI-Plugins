@@ -9,6 +9,7 @@
     "build": "node build.mjs",
     "build:dev": "node build.mjs --dev",
     "deploy": "pnpm typecheck && pnpm build && node ../../scripts/deploy.mjs",
+    "release": "pnpm typecheck && pnpm build && node ../../scripts/release.mjs",
     "watch": "node build.mjs --watch"
   },
   "devDependencies": {

@@ -9,9 +9,11 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "deploy": "pnpm -r run deploy",
+    "release": "pnpm -r run release",
     "lint": "eslint ."
   },
   "devDependencies": {
+    "adm-zip": "^0.6.1",
     "esbuild": "^0.28.1",
     "eslint": "^9.39.0",
     "typescript-eslint": "^8.46.0"
