@@ -29,6 +29,8 @@ pnpm new my-plugin 显示名 描述                # 生成 plugins/my-plugin（
 pnpm --filter my-plugin typecheck             # tsc --noEmit
 pnpm --filter my-plugin deploy                # 类型检查 + 生产构建 + 复制到目标库
 pnpm --filter my-plugin release               # 类型检查 + 生产构建 + 打包为分发 zip
+pnpm --filter my-plugin release:gh            # 将本地 zip 发布为 GitHub Release（需 gh 已登录）
+pnpm docs:readme                              # 从各 plugin.json 重新生成 README 已发布插件列表
 pnpm --filter my-plugin watch                 # 源码变更自动构建并部署
 pnpm --filter my-plugin build:dev             # 调试构建（带 inline sourcemap）
 ```

@@ -60,6 +60,13 @@ zip 内含（与 `<VAULT_ROOT>/.agents/plugins/<name>/` 一一对应）：
 - 版本号取自 `plugin.json` 的 `version`，zip 文件名 `<name>-v<version>.zip`；**发版前先改 `plugin.json` 的 `version`**。
 - 分发：解压到目标库 `.agents/plugins/` 后启用；或覆盖已部署目录后重载。带静态资源的插件（如 turn-loading-style）`assets/` 会被自动带上，无需额外配置。
 
+### GitHub 发布（每插件一个 Release）
+
+- 发版 = 打 tag `<name>-v<version>` 并 push；`.github/workflows/release.yml` 自动构建打包并 `gh release create` 上传 zip（也可用 `workflow_dispatch` 手选插件+版本）。
+- 本地发布：`pnpm --filter <name> release && pnpm --filter <name> release:gh`（需本机已 `gh auth login`）。
+- 下载地址（带版本）：`https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/<name>-v<version>/<name>-v<version>.zip`
+- 已发布插件列表与下载链接由 `pnpm docs:readme` 从各 `plugin.json` 自动生成（写一次，版本自动更新）。
+
 ## 插件工程约定
 
 - 入口 `src/main.ts`，`export default class extends Plugin`；`static inject` 声明必需服务。
@@ -97,6 +104,44 @@ zip 内含（与 `<VAULT_ROOT>/.agents/plugins/<name>/` 一一对应）：
 - 快速索引：`docs/services-overview.md`（72 个服务）+ `docs/api/services.md`（方法签名）
 - 类型契约：`docs/api/core-types.md` + `vendor/ai-api/index.d.ts`
 - 需要最新/更深的契约时，请 Creator Agent 调用 `query_services` / `inspect_docs`（按 Service 名或文档 ID）
+
+## 已发布插件
+
+<!-- PLUGIN-LIST:START -->
+### ai-usage（v0.3.3）
+
+监控已配置模型的用量（GLM/DeepSeek/Codex CLI），支持正向/逆向显示与按模型开关
+
+- 下载：[ai-usage-v0.3.3.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/ai-usage-v0.3.3/ai-usage-v0.3.3.zip)
+- 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=ai-usage-v*)
+
+### live-session-title（v0.2.1）
+
+根据对话最新内容持续更新会话标题；支持按会话 ID、标题正则、Agent 名单排除，可配置标题模型与提示词。
+
+- 下载：[live-session-title-v0.2.1.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/live-session-title-v0.2.1/live-session-title-v0.2.1.zip)
+- 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=live-session-title-v*)
+
+### turn-loading-style（v0.2.1）
+
+自定义对话处理中的加载动画与提示文字
+
+- 下载：[turn-loading-style-v0.2.1.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/turn-loading-style-v0.2.1/turn-loading-style-v0.2.1.zip)
+- 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=turn-loading-style-v*)
+
+<!-- PLUGIN-LIST:END -->
+
+### 验证记录（2026-11-20，应用内实测）
+
+| 检查项 | 结果 |
+| --- | --- |
+| live-session-title：加载/标题更新/排除/禁用释放/重载 | 全部通过 |
+| ai-usage：加载/footer 注册与释放/位置三档/GLM 端点 200 | 全部通过 |
+| ai-usage：弹层 Portal 渲染/外点关闭/进度条/倒计时 | DOM 实测通过 |
+| ai-usage：重载孤儿根自愈 | 连续 3 次重载压测单根稳定 |
+| kit 公共件迁移后两插件回归 | loaded 零错误，功能正常 |
+
+未覆盖：设置界面的视觉外观（类名结构与官方插件一致，由应用全局样式渲染）。
 
 ## Git 提交约定
 

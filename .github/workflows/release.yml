@@ -1,0 +1,73 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - '*-v*'
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: '插件名（如 turn-loading-style）'
+        required: true
+        type: string
+      version:
+        description: '版本号（如 0.2.1）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Resolve plugin/version/tag
+        id: resolve
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PLUGIN="${{ inputs.plugin }}"
+            VERSION="${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            PLUGIN="${TAG%-v*}"
+            VERSION="${TAG##*-v}"
+          fi
+          echo "plugin=${PLUGIN}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${PLUGIN}-v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and package
+        run: pnpm --filter ${{ steps.resolve.outputs.plugin }} release
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/gh-release.mjs plugins/${{ steps.resolve.outputs.plugin }}
+
+      - name: Regenerate README plugin list
+        shell: bash
+        run: |
+          node scripts/gen-readme.mjs
+          if [ -n "$(git status --porcelain README.md)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "docs: 更新已发布插件列表"
+            git push || echo "README 提交推送跳过（需人工 review）"
+          fi

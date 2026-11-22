@@ -10,7 +10,16 @@
     "typecheck": "pnpm -r run typecheck",
     "deploy": "pnpm -r run deploy",
     "release": "pnpm -r run release",
+    "docs:readme": "node scripts/gen-readme.mjs",
+    "release:gh": "node scripts/gh-release.mjs",
     "lint": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RavenHogWarts/Components-AI-Plugins.git"
+  },
+  "publish": {
+    "exclude": ["dev-hot-reload"]
   },
   "devDependencies": {
     "adm-zip": "^0.6.1",

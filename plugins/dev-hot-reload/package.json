@@ -10,6 +10,7 @@
     "build:dev": "node build.mjs --dev",
     "deploy": "pnpm typecheck && pnpm build && node ../../scripts/deploy.mjs",
     "release": "pnpm typecheck && pnpm build && node ../../scripts/release.mjs",
+    "release:gh": "node ../../scripts/gh-release.mjs",
     "watch": "node build.mjs --watch"
   },
   "devDependencies": {
