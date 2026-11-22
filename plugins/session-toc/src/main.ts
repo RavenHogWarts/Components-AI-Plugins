@@ -15,7 +15,7 @@ interface ConversationViewService {
 export default class SessionDirectoryPlugin extends Plugin {
   static inject = ['conversationViewService', 'transcriptFactory'] as const;
 
-  private static readonly BLOCK_ID = 'session-directory.toc';
+  private static readonly BLOCK_ID = 'session-toc.toc';
 
   private store?: SettingsStore<PluginSettings>;
   private conversation?: ConversationViewService;

@@ -1,4 +1,4 @@
-/* ===== 会话目录快速跳转（session-directory）=====
+/* ===== 会话目录快速跳转（session-toc）=====
    作用域限定在 .xdb--SessionToc*，避免影响应用全局。
    结构对齐 ZCode 原生 turn navigator：左侧居中一条可滚动刻度条，
    每个轮次一个刻度（间距 10px），当前活动轮次高亮，悬浮弹预览卡。 */
