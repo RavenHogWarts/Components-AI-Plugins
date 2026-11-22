@@ -61,7 +61,8 @@ export function buildTocEntries(nodes: readonly TranscriptNode[]): TocEntry[] {
             if (preview.length === 0 && text.length > 0) preview = text;
           } else if (message?.role === 'assistant') {
             const text = partsText(message.content);
-            if (reply.length === 0 && text.length > 0) reply = text;
+            // 取最后一个非空助手文本：最终回复，而非中途的思考/执行旁白
+            if (text.length > 0) reply = text;
           }
         }
         for (const child of current.children) collectText(child);
