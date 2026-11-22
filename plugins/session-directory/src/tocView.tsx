@@ -185,7 +185,6 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
               style={{ top: index * TICK_STEP }}
               onMouseEnter={(e) => openFromTick(entry.turnId, e.currentTarget)}
               onClick={() => scrollToTurn(entry.turnId)}
-              aria-label={`跳转到第 ${entry.index} 条问题`}
               aria-posinset={entry.index}
               aria-setsize={entries.length}
               aria-current={activeId === entry.turnId ? 'location' : undefined}
