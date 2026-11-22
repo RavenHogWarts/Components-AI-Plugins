@@ -177,7 +177,7 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
             <button
               key={entry.turnId}
               type="button"
-              className={`xdb--SessionTocTick${activeId === entry.turnId ? ' xdb--SessionTocTick--active' : ''}${hovered?.turnId === entry.turnId ? ' xdb--SessionTocTick--hovered' : ''}`}
+              className={`clickable-icon xdb--SessionTocTick${activeId === entry.turnId ? ' xdb--SessionTocTick--active' : ''}${hovered?.turnId === entry.turnId ? ' xdb--SessionTocTick--hovered' : ''}`}
               style={{ top: index * TICK_STEP }}
               onMouseEnter={(e) => openFromTick(entry.turnId, e.currentTarget)}
               onClick={() => scrollToTurn(entry.turnId)}

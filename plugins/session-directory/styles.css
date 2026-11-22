@@ -77,23 +77,23 @@
   border-radius: 9999px;
   background: var(--text-faint, #999999);
   opacity: 0.58;
-  transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  transform-origin: left center;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.xdb--SessionTocTick:hover .xdb--SessionTocTickBar {
-  background: var(--text-muted, #777777);
-  opacity: 0.9;
+.xdb--SessionToc--right .xdb--SessionTocTickBar {
+  transform-origin: right center;
+}
+
+/* 悬浮/预览时刻度条变长（锚定刻度条一侧），不做背景色变化 */
+.xdb--SessionTocTick:hover .xdb--SessionTocTickBar,
+.xdb--SessionTocTick--hovered .xdb--SessionTocTickBar {
+  transform: scaleX(2);
 }
 
 .xdb--SessionTocTick--active .xdb--SessionTocTickBar {
   background: var(--text-normal, #dddddd);
   opacity: 0.9;
-}
-
-.xdb--SessionTocTick--hovered .xdb--SessionTocTickBar {
-  background: var(--text-accent, #5b9bd5);
-  opacity: 1;
-  transform: scaleX(1.1);
 }
 
 /* 悬浮预览卡：贴在刻度条旁，垂直随刻度位置并夹取在会话区内 */
