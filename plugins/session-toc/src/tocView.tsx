@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { ConversationViewProps, Session, TranscriptFactory } from '@obsidian-components/ai-api';
+import type { SettingsStore } from 'ai-plugin-kit';
 import { buildTocEntries, type TocEntry } from './entries';
 import type { PluginSettings } from './settings';
 
 interface TocViewProps {
   session?: Session;
   factory: TranscriptFactory;
-  getSettings: () => PluginSettings;
+  store: SettingsStore<PluginSettings>;
 }
 
 /** 悬浮卡最大高度估算（像素），用于把卡片底部夹在会话区内 */
@@ -25,8 +26,9 @@ interface HoverState {
   top: number;
 }
 
-function TocView({ session, factory, getSettings }: TocViewProps) {
-  const settings = getSettings();
+function TocView({ session, factory, store }: TocViewProps) {
+  // 订阅设置存储：设置变更（含侧边/预览行数/启用）即时重渲染，无需重新 hover
+  const settings = useSyncExternalStore(store.subscribe, store.getSettings);
   const [entries, setEntries] = useState<TocEntry[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<HoverState | null>(null);
@@ -223,12 +225,12 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
  */
 export function createTocBlockRenderer(
   factory: TranscriptFactory,
-  getSettings: () => PluginSettings,
+  store: SettingsStore<PluginSettings>,
 ): new () => { mount(container: HTMLElement, props?: ConversationViewProps): void; unmount(): void } {
   return class {
     private root?: Root;
     mount(container: HTMLElement, props?: ConversationViewProps): void {
-      const element = <TocView session={props?.session} factory={factory} getSettings={getSettings} />;
+      const element = <TocView session={props?.session} factory={factory} store={store} />;
       if (this.root) {
         this.root.render(element);
       } else {

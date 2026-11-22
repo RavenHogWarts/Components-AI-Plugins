@@ -29,7 +29,7 @@ export default class SessionDirectoryPlugin extends Plugin {
     this.conversation.registerBlock({
       id: SessionDirectoryPlugin.BLOCK_ID,
       order: 2000,
-      renderer: createTocBlockRenderer(factory, () => this.store!.getSettings()),
+      renderer: createTocBlockRenderer(factory, this.store),
     });
 
     this.provideSettingsView(api, this.store);
