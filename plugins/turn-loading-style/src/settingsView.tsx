@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AiApp, PluginManifest } from '@obsidian-components/ai-api';
 import { SettingsSection, SettingSelect, SettingText, type SettingsStore } from 'ai-plugin-kit';
 import type { AnimEntry } from './anims';
-import type { PluginSettings } from './settings';
+import { ANIM_SIZE_EM, type AnimSize, type PluginSettings } from './settings';
 
 export interface TurnLoadingViewProps {
   store: SettingsStore<PluginSettings>;
@@ -65,6 +65,21 @@ export function TurnLoadingSettingsView(props: TurnLoadingViewProps) {
             ))}
           </optgroup>
         ) : null}
+      </SettingSelect>
+      <SettingSelect
+        label="素材尺寸"
+        description="动画素材（assets/anims）的显示大小"
+        value={settings.size}
+        onChange={(event) => {
+          const value = event.currentTarget.value;
+          if (value === 'sm' || value === 'md' || value === 'lg') {
+            apply({ size: value as AnimSize });
+          }
+        }}
+      >
+        <option value="sm">小（{ANIM_SIZE_EM.sm}）</option>
+        <option value="md">标准（{ANIM_SIZE_EM.md}）</option>
+        <option value="lg">大（{ANIM_SIZE_EM.lg}）</option>
       </SettingSelect>
       <SettingText
         label="提示文字"

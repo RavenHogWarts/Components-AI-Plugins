@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { createReactView, mountSettingsView, SettingsStore } from 'ai-plugin-kit';
 import { loadAnims, type AnimEntry, type AnimRuntime } from './anims';
 import { LottieHost } from './lottieHost';
-import { loadSettings, type PluginSettings } from './settings';
+import { ANIM_SIZE_EM, loadSettings, type PluginSettings } from './settings';
 import { TurnLoadingSettingsView } from './settingsView';
 
 /**
@@ -80,6 +80,7 @@ export default class TurnLoadingStylePlugin extends Plugin {
   private finish(preset: string): void {
     const settings = this.store!.getSettings();
     document.body.dataset.aiTurnLoading = preset;
+    document.body.style.setProperty('--ai-turn-anim-size', ANIM_SIZE_EM[settings.size]);
     const text = settings.text.trim();
     if (text.length > 0) {
       document.body.dataset.aiTurnText = '1';
@@ -100,6 +101,7 @@ export default class TurnLoadingStylePlugin extends Plugin {
     delete document.body.dataset.aiTurnLoading;
     delete document.body.dataset.aiTurnText;
     document.body.style.removeProperty('--ai-turn-loading-text');
+    document.body.style.removeProperty('--ai-turn-anim-size');
     this.store = undefined;
   }
 }

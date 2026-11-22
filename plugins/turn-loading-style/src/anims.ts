@@ -98,11 +98,12 @@ export async function loadAnims(files: FileApi, packagePath: string): Promise<An
     hideSelectors.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading .xdb--WaveBars`);
     if (kind === 'svg') {
       const encoded = encodeSvg(await files.readText(file));
+      // 外部 SVG 普遍带留白（填充率 ~55-70%），乘 1.4 补偿；基准值由设置经 CSS 变量提供
       rules.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading::before {
   content: '';
   flex: none;
-  width: 1.3em;
-  height: 1.3em;
+  width: calc(var(--ai-turn-anim-size, 1.3em) * 1.4);
+  height: calc(var(--ai-turn-anim-size, 1.3em) * 1.4);
   margin-right: 6px;
   background: url("data:image/svg+xml,${encoded}") center / contain no-repeat;
 }`);
@@ -112,15 +113,19 @@ export async function loadAnims(files: FileApi, packagePath: string): Promise<An
       rules.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading::before {
   content: '';
   flex: none;
-  width: 1.3em;
-  height: 1.3em;
+  width: calc(var(--ai-turn-anim-size, 1.3em) * 1.4);
+  height: calc(var(--ai-turn-anim-size, 1.3em) * 1.4);
   margin-right: 6px;
   background: url("data:${mime};base64,${base64}") center / contain no-repeat;
 }`);
     } else {
       lottieText.set(id, await files.readText(file));
-      rules.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading .xdb--WaveBars {
-  display: none;
+      // wired 系 Lottie 内容铺满画布，与旧版贴边宠物同构：基准尺寸即可
+      rules.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading .ai-lottie-host {
+  flex: none;
+  width: var(--ai-turn-anim-size, 1.3em);
+  height: var(--ai-turn-anim-size, 1.3em);
+  margin-right: 6px;
 }`);
     }
   }
