@@ -105,6 +105,10 @@ zip 内含（与 `<VAULT_ROOT>/.agents/plugins/<name>/` 一一对应）：
 - 类型契约：`docs/api/core-types.md` + `vendor/ai-api/index.d.ts`
 - 需要最新/更深的契约时，请 Creator Agent 调用 `query_services` / `inspect_docs`（按 Service 名或文档 ID）
 
+## Git 提交约定
+
+Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`），完成一个逻辑单元即时本地提交。
+
 ## 已发布插件
 
 <!-- PLUGIN-LIST:START -->
@@ -114,6 +118,13 @@ zip 内含（与 `<VAULT_ROOT>/.agents/plugins/<name>/` 一一对应）：
 
 - 下载：[ai-usage-v0.3.3.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/ai-usage-v0.3.3/ai-usage-v0.3.3.zip)
 - 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=ai-usage-v*)
+
+### dev-hot-reload（v0.1.0）
+
+开发工具：部署文件变化时自动重载对应插件，deploy 即时生效
+
+- 下载：[dev-hot-reload-v0.1.0.zip](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/dev-hot-reload-v0.1.0/dev-hot-reload-v0.1.0.zip)
+- 最新发布：![v](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=dev-hot-reload-v*)
 
 ### live-session-title（v0.2.1）
 
@@ -142,7 +153,3 @@ zip 内含（与 `<VAULT_ROOT>/.agents/plugins/<name>/` 一一对应）：
 | kit 公共件迁移后两插件回归 | loaded 零错误，功能正常 |
 
 未覆盖：设置界面的视觉外观（类名结构与官方插件一致，由应用全局样式渲染）。
-
-## Git 提交约定
-
-Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`），完成一个逻辑单元即时本地提交。

@@ -13,16 +13,15 @@ const repoUrl = (rootPkg.repository && (rootPkg.repository.url || rootPkg.reposi
 const m = repoUrl.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
 if (!m) throw new Error('无法从 package.json repository.url 解析 owner/repo（形如 git+https://github.com/<owner>/<repo>.git）');
 const [, owner, repo] = m;
-const exclude = new Set(rootPkg.publish?.exclude || []);
 
-// 收集可发布插件（排除 publish.exclude，如 dev-hot-reload）
+// 收集所有插件（列表按名称字母排序；版本/描述取自 plugin.json 单一来源）
 const plugins = [];
 for (const entry of fs.readdirSync(pluginsDir, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue;
   const manifestPath = path.join(pluginsDir, entry.name, 'plugin.json');
   if (!fs.existsSync(manifestPath)) continue;
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  if (!manifest.name || exclude.has(manifest.name)) continue;
+  if (!manifest.name) continue;
   plugins.push({
     name: manifest.name,
     version: manifest.version || '0.0.0',
