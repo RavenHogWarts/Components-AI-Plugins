@@ -34,6 +34,13 @@ if (dryRun) {
   console.log(`[gh-release] DRY-RUN: gh ${args.join(' ')}`);
   console.log(`[gh-release] 资产: ${path.basename(zip)}`);
 } else {
+  // 幂等：同一 tag 可能被本地 release:gh 与 CI workflow（tag 推送触发）重复创建，
+  // Release 已存在则跳过，避免 "release with the same tag name already exists" 报错。
+  const exists = spawnSync('gh', ['release', 'view', tag, '--json', 'tagName'], { encoding: 'utf8' });
+  if (exists.status === 0) {
+    console.log(`[gh-release] Release ${tag} 已存在，跳过创建（幂等，资产已就绪）`);
+    process.exit(0);
+  }
   const result = spawnSync('gh', args, { stdio: 'inherit' });
   if (result.status !== 0) {
     console.error(`[gh-release] gh release create 失败（exit ${result.status}）`);
