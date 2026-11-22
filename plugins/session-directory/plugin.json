@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "session-directory",
+  "description": "在对话窗口侧边提供会话内目录（TOC）：悬浮预览各轮次用户输入内容，点击快速滚动跳转到对应轮次。",
+  "version": "0.1.0",
+  "extensions": {
+    "xdb-ai": {},
+    "io.github.vran-dev.xdb": {
+      "displayName": "会话目录快速跳转",
+      "platforms": ["all"]
+    }
+  }
+}
