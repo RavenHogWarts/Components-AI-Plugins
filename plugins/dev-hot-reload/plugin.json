@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-hot-reload",
+  "description": "开发工具：部署文件变化时自动重载对应插件，deploy 即时生效",
+  "version": "0.1.0",
+  "extensions": {
+    "xdb-ai": {},
+    "io.github.vran-dev.xdb": { "displayName": "热重载（开发工具）", "platforms": ["desktop"] }
+  }
+}

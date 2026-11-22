@@ -1,0 +1,23 @@
+{
+  "name": "dev-hot-reload",
+  "version": "0.1.0",
+  "private": true,
+  "description": "开发工具：部署文件变化时自动重载对应插件，deploy 即时生效",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "deploy": "pnpm typecheck && pnpm build && node ../../scripts/deploy.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "devDependencies": {
+    "@obsidian-components/ai-api": "link:../../vendor/ai-api",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "ai-plugin-kit": "workspace:*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^5.9.3"
+  }
+}
