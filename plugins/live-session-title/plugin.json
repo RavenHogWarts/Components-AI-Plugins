@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "live-session-title",
   "description": "根据对话最新内容持续更新会话标题；支持按会话 ID、标题正则、Agent 名单排除，可配置标题模型与提示词。",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "extensions": {
     "xdb-ai": {},
     "io.github.vran-dev.xdb": {

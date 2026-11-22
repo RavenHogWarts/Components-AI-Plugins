@@ -1,6 +1,6 @@
 {
   "name": "live-session-title",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "根据对话最新内容持续更新会话标题；支持按会话 ID、标题正则、Agent 名单排除，可配置标题模型与提示词。",
   "type": "module",

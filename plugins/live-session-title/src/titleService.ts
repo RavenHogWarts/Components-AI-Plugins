@@ -103,10 +103,17 @@ export class TitleService {
         settings,
         this.signal,
       );
-      if (title == null || title === session.data.title) return;
+      if (title == null) return;
+
+      // 模型调用期间会话可能已开始/结束新轮次：重读最新数据并仅在空闲时写回。
+      // 避免用过期数据覆盖新内容；也避免在应用活跃持久化（status/事件保存）时
+      // 并发写同一 session.json——Windows 下并发保存会触发原子重命名 EPERM。
+      const latest = await this.deps.sessionManager.getById(sessionId);
+      if (!latest || latest.status !== 'idle') return;
+      if (title === latest.data.title) return;
 
       this.signal.throwIfAborted();
-      await session.update({ ...session.data, title });
+      await latest.update({ ...latest.data, title });
     } catch (error) {
       if (!this.signal.aborted) {
         console.warn('[live-session-title] 更新标题失败:', error);
