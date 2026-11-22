@@ -25,7 +25,11 @@ export default class TurnLoadingStylePlugin extends Plugin {
   async onResolving(): Promise<void> {
     const { api } = this;
     this.store = new SettingsStore(api, loadSettings(await api.readData()), loadSettings);
-    this.anims = await loadAnims(api.app.files, `.agents/plugins/${api.manifest.name}`);
+    const obsidianApp = api.getService('obsidianApp') as
+      | { vault?: { adapter?: { getBasePath?: () => string } } }
+      | undefined;
+    const basePath = obsidianApp?.vault?.adapter?.getBasePath?.();
+    this.anims = await loadAnims(api.app.files, `.agents/plugins/${api.manifest.name}`, basePath);
     this.apply();
     this.releaseSettings = this.store.subscribe(() => this.apply());
 
@@ -45,24 +49,25 @@ export default class TurnLoadingStylePlugin extends Plugin {
   }
 
   private apply(): void {
-    const preset = this.store!.getSettings().preset;
-
+    let preset = this.store!.getSettings().preset;
     let lottieData: unknown;
+
     if (typeof preset === 'string' && preset.startsWith('anim:')) {
       const entry = this.anims?.entries.find((item) => item.id === preset);
       if (entry == null) {
-        // 素材缺失（被删除/未部署）：回退应用默认
-        this.finish('default');
-        return;
-      }
-      if (entry.kind === 'lottie') {
+        // 素材缺失（被删除/未部署）：回退应用默认并停掉残留动画
+        preset = 'default';
+      } else if (entry.kind === 'lottie') {
         const text = this.anims?.lottieText.get(preset);
         if (text != null) {
           try {
             lottieData = JSON.parse(text);
           } catch (error) {
-            console.warn('[turn-loading-style] Lottie JSON 无效:', error);
+            console.warn('[turn-loading-style] Lottie JSON 无效，回退默认:', error);
+            preset = 'default';
           }
+        } else {
+          preset = 'default';
         }
       }
     }
@@ -70,11 +75,17 @@ export default class TurnLoadingStylePlugin extends Plugin {
     if (lottieData != null) {
       this.host.start(lottieData);
       this.lottieActive = true;
-    } else if (this.lottieActive) {
+    } else {
+      this.stopLottie();
+    }
+    this.finish(preset);
+  }
+
+  private stopLottie(): void {
+    if (this.lottieActive) {
       this.host.stop();
       this.lottieActive = false;
     }
-    this.finish(preset);
   }
 
   private finish(preset: string): void {

@@ -9,7 +9,7 @@ export interface AnimEntry {
   /** 展示名（文件名清洗后） */
   readonly label: string;
   readonly kind: AnimKind;
-  /** 库内根相对路径 */
+  /** 素材文件路径 */
   readonly file: string;
 }
 
@@ -21,6 +21,14 @@ export interface AnimRuntime {
 }
 
 const STYLE_ID = 'ai-turn-anims';
+
+/** 应用重启后 FileApi 要求原生绝对路径；obsidianApp 提供库根做换算。跨平台感知分隔符。 */
+function toNative(basePath: string | undefined, path: string): string {
+  if (/^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/')) return path;
+  if (!basePath) return path;
+  const sep = basePath.includes('\\') ? '\\' : '/';
+  return `${basePath}${sep}${path.replace(/[\\/]/g, sep)}`;
+}
 
 function slugify(name: string): string {
   return name
@@ -37,11 +45,13 @@ function prettyLabel(name: string): string {
     .replace(/-hover-pinch$|-crawl$/, '');
 }
 
+/** data URI 安全转义：`%` 必须最先编码，否则后续 `%3C/%3E/%23` 会被二次转义。 */
 function encodeSvg(source: string): string {
   return source
     .replace(/\r?\n\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .replace(/"/g, "'")
+    .replace(/%/g, '%25')
     .replace(/</g, '%3C')
     .replace(/>/g, '%3E')
     .replace(/#/g, '%23');
@@ -67,26 +77,36 @@ function kindOf(file: string): AnimKind | undefined {
  * 扫描部署包 assets/anims/ 并注入运行时样式（选择器与生成器 CSS 同构）。
  * json 不入样式，仅登记供 Lottie 引擎按需加载。
  */
-export async function loadAnims(files: FileApi, packagePath: string): Promise<AnimRuntime> {
+export async function loadAnims(
+  files: FileApi,
+  packagePath: string,
+  basePath?: string,
+): Promise<AnimRuntime> {
   const entries: AnimEntry[] = [];
   const lottieText = new Map<string, string>();
   const rules: string[] = [];
   const hideSelectors: string[] = [];
 
   const dir = `${packagePath}/assets/anims`;
+  const nativeDir = toNative(basePath, dir);
   let list: readonly { readonly path: string }[] = [];
   try {
-    list = await files.list(dir);
+    list = await files.list(nativeDir);
   } catch {
-    return { entries, lottieText, dispose: () => undefined };
+    // 兼容旧行为：FileApi 支持根相对路径时回退
+    try {
+      list = await files.list(dir);
+    } catch {
+      return { entries, lottieText, dispose: () => undefined };
+    }
   }
 
   const seen = new Set<string>();
   for (const item of list) {
-    const file = item.path;
+    const file = toNative(basePath, item.path);
     const kind = kindOf(file);
     if (!kind) continue;
-    const fileName = file.split('/').pop() ?? file;
+    const fileName = file.split(/[\\/]/).pop() ?? file;
     const label = prettyLabel(fileName);
     let slug = slugify(label);
     if (slug.length === 0) slug = slugify(fileName);
@@ -97,7 +117,8 @@ export async function loadAnims(files: FileApi, packagePath: string): Promise<An
     entries.push({ id, label: label || slug, kind, file });
     hideSelectors.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading .xdb--WaveBars`);
     if (kind === 'svg') {
-      const encoded = encodeSvg(await files.readText(file));
+      const source = await files.readText(file);
+      const encoded = encodeSvg(source);
       // 外部 SVG 普遍带留白（填充率 ~55-70%），乘 1.4 补偿；基准值由设置经 CSS 变量提供
       rules.push(`body[data-ai-turn-loading="${id}"] .xdb--TurnLoading::before {
   content: '';
