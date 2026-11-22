@@ -1,8 +1,8 @@
 {
   "name": "turn-loading-style",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "自定义对话处理中的加载动画与提示文字",
+  "description": "自定义对话处理中的加载动画与提示文字（SVG/GIF/Lottie 内置素材）",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "ai-plugin-kit": "workspace:*",
+    "lottie-web": "^5.13.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "typescript": "^5.9.3"

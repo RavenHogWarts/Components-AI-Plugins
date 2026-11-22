@@ -3,7 +3,9 @@ export type LoadingPreset =
   | 'spinner'
   | 'braille'
   | 'star'
-  | 'hidden';
+  | 'hidden'
+  /** assets/anims/ 内置动画素材（运行时发现，存在性由应用时校验） */
+  | `anim:${string}`;
 
 export interface PluginSettings {
   /** 加载动画预设；default = 不覆盖应用原生样式 */
@@ -24,9 +26,11 @@ const PRESETS: readonly LoadingPreset[] = [
 
 export function loadSettings(raw: unknown): PluginSettings {
   const source = raw != null && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const preset = PRESETS.includes(source.preset as LoadingPreset)
-    ? (source.preset as LoadingPreset)
-    : 'default';
+  const value = source.preset;
+  const preset =
+    PRESETS.includes(value as LoadingPreset) || (typeof value === 'string' && /^anim:[\w-]+$/.test(value))
+      ? (value as LoadingPreset)
+      : 'default';
   return {
     preset,
     text: typeof source.text === 'string' ? source.text.slice(0, 40) : '',

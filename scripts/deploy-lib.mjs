@@ -41,6 +41,20 @@ export async function deployPlugin(pluginDir, { silent = false } = {}) {
     fs.copyFileSync(styles, path.join(target, 'xdb-ai', 'styles.css'));
   }
 
+  const assetsDir = path.join(pluginDir, 'assets');
+  if (fs.existsSync(assetsDir)) {
+    const copyDir = (source, destination) => {
+      fs.mkdirSync(destination, { recursive: true });
+      for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+        const from = path.join(source, entry.name);
+        const to = path.join(destination, entry.name);
+        if (entry.isDirectory()) copyDir(from, to);
+        else fs.copyFileSync(from, to);
+      }
+    };
+    copyDir(assetsDir, path.join(target, 'assets'));
+  }
+
   if (!silent) {
     console.log(`[deploy] ${manifest.name} -> ${path.relative(vaultRoot, target)} 完成`);
   }
