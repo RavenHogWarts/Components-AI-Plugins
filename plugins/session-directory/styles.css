@@ -1,11 +1,16 @@
 /* ===== 会话目录快速跳转（session-directory）=====
    作用域限定在 .xdb--SessionToc*，避免影响应用全局。
-   根元素绝对定位覆盖对话区（.xdb--Conversation 为 position:relative 包含块），
-   pointer-events:none 让出下层交互；仅刻度条与悬浮卡开启 pointer-events。 */
+   结构对齐 ZCode 原生 turn navigator：左侧居中一条可滚动刻度条，
+   每个轮次一个刻度（间距 10px），当前活动轮次高亮，悬浮弹预览卡。 */
 
 .xdb--SessionToc {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  max-height: calc(100% - 6rem);
+  display: flex;
+  flex-direction: column;
   pointer-events: none;
   z-index: 40;
 }
@@ -14,61 +19,81 @@
   display: none;
 }
 
-/* 通高迷你地图刻度条 */
-.xdb--SessionTocRail {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 14px;
-  pointer-events: auto;
-  background: var(--background-secondary, rgba(0, 0, 0, 0.04));
-  cursor: default;
-}
-
-.xdb--SessionToc--left .xdb--SessionTocRail {
+.xdb--SessionToc--left {
   left: 0;
-  border-right: 1px solid var(--background-modifier-border, #333333);
 }
 
-.xdb--SessionToc--right .xdb--SessionTocRail {
+.xdb--SessionToc--right {
   right: 0;
-  border-left: 1px solid var(--background-modifier-border, #333333);
+}
+
+/* 可滚动刻度条（隐藏滚动条） */
+.xdb--SessionTocRail {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  pointer-events: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+
+.xdb--SessionTocRail::-webkit-scrollbar {
+  display: none;
+}
+
+/* 刻度列表：高度由刻度数 * 10px 决定 */
+.xdb--SessionTocList {
+  position: relative;
+  width: 24px;
 }
 
 /* 每个轮次一个刻度（点击跳转，悬浮预览） */
 .xdb--SessionTocTick {
   position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 10px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 10px;
+  justify-content: flex-start;
   padding: 0;
   background: transparent;
   border: none;
   cursor: pointer;
+  border-radius: 2px;
 }
 
-.xdb--SessionTocTick::before {
-  content: '';
+.xdb--SessionTocTick:focus-visible {
+  outline: 2px solid var(--color-accent, #5b9bd5);
+  outline-offset: 1px;
+}
+
+.xdb--SessionTocTickBar {
   display: block;
-  width: 8px;
-  height: 2px;
-  background: var(--text-faint, #999999);
-  border-radius: 1px;
-  transition: background 0.12s ease, width 0.12s ease;
-}
-
-.xdb--SessionTocTick:hover::before,
-.xdb--SessionTocTick--active::before {
-  background: var(--text-accent, #5b9bd5);
   width: 12px;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--text-faint, #999999);
+  opacity: 0.58;
+  transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
 
-.xdb--SessionTocTick--running::before {
-  background: var(--color-green, #4caf50);
+.xdb--SessionTocTick:hover .xdb--SessionTocTickBar {
+  background: var(--text-muted, #777777);
+  opacity: 0.9;
+}
+
+.xdb--SessionTocTick--active .xdb--SessionTocTickBar {
+  background: var(--text-normal, #dddddd);
+  opacity: 0.9;
+}
+
+.xdb--SessionTocTick--hovered .xdb--SessionTocTickBar {
+  background: var(--text-accent, #5b9bd5);
+  opacity: 1;
+  transform: scaleX(1.1);
 }
 
 /* 悬浮预览卡：贴在刻度条旁，垂直随刻度位置并夹取在会话区内 */
@@ -90,12 +115,12 @@
 }
 
 .xdb--SessionToc--left .xdb--SessionTocTip {
-  left: 16px;
+  left: 32px;
   animation-name: xdb--SessionTocFadeRight;
 }
 
 .xdb--SessionToc--right .xdb--SessionTocTip {
-  right: 16px;
+  right: 32px;
   animation-name: xdb--SessionTocFadeLeft;
 }
 

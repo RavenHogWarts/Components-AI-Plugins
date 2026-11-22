@@ -12,43 +12,63 @@ interface TocViewProps {
 
 /** 悬浮卡半高估算（像素），用于把卡片垂直夹在会话区内 */
 const TIP_HALF = 56;
+/** 每个刻度的间距（像素），与 ZCode 原生 turn navigator 一致 */
+const TICK_STEP = 10;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
+interface HoverState {
+  turnId: string;
+  /** 刻度中心在会话区内的纵向位置（像素，相对根元素顶部） */
+  top: number;
+}
+
 function TocView({ session, factory, getSettings }: TocViewProps) {
   const settings = getSettings();
   const [entries, setEntries] = useState<TocEntry[]>([]);
-  /** turnId → 该轮次在对话内容中的相对位置（0..1） */
-  const [positions, setPositions] = useState<Record<string, number>>({});
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<HoverState | null>(null);
   const [railHeight, setRailHeight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const entriesRef = useRef<TocEntry[]>([]);
   const closeTimer = useRef<number | undefined>(undefined);
+  const activeRaf = useRef(0);
 
   entriesRef.current = entries;
 
-  // 从 DOM 读取每个轮次的相对位置：刻度按内容位置比例分布（迷你地图）
-  const recompute = (): void => {
+  const getScope = (): { conv: HTMLElement | null; transcript: HTMLElement | null } => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root) return { conv: null, transcript: null };
     const conv = root.closest('.xdb--Conversation') as HTMLElement | null;
-    const transcript = conv?.querySelector('.xdb--Transcript') as HTMLElement | null;
+    const transcript = (conv?.querySelector('.xdb--Transcript') as HTMLElement | null) ?? null;
+    return { conv, transcript };
+  };
+
+  // 当前活动轮次：位于转写区视口顶部的那个
+  const updateActive = (): void => {
+    const { conv, transcript } = getScope();
     if (!conv || !transcript) return;
-    const list = (transcript.querySelector('.xdb--TranscriptList') as HTMLElement | null) ?? transcript;
-    const listTop = list.getBoundingClientRect().top;
-    const total = list.scrollHeight;
-    const next: Record<string, number> = {};
+    const trTop = transcript.getBoundingClientRect().top;
+    let best: string | null = null;
+    let bestOffset = Infinity;
+    let last: string | null = null;
+    let lastTop = -Infinity;
     for (const entry of entriesRef.current) {
       const el = conv.querySelector(`[data-node-key="${CSS.escape(entry.key)}"]`);
-      if (el) {
-        const top = el.getBoundingClientRect().top - listTop;
-        next[entry.turnId] = total > 0 ? clamp(top / total, 0, 1) : 0;
+      if (!el) continue;
+      const top = el.getBoundingClientRect().top - trTop;
+      if (top >= 0 && top < bestOffset) {
+        bestOffset = top;
+        best = entry.turnId;
+      }
+      if (top > lastTop) {
+        lastTop = top;
+        last = entry.turnId;
       }
     }
-    setPositions(next);
+    setActiveId(best ?? last);
   };
 
   // 跟随当前会话创建转写，内容更新时重建目录条目；切换会话自动重建
@@ -74,19 +94,32 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
     };
   }, [session, factory]);
 
-  // 内容更新后稍候（等 DOM 布局稳定）再重算刻度位置
+  // 内容更新后稍候（等 DOM 布局稳定）再重算活动轮次
   useEffect(() => {
-    const id = window.setTimeout(recompute, 80);
+    const id = window.setTimeout(updateActive, 80);
     return () => window.clearTimeout(id);
   }, [entries]);
 
-  // 测量会话区高度，尺寸变化时重算（含后台面板重新可见时的布局重建）
+  // 监听转写区滚动（capture 捕获不冒泡的 scroll），节流更新活动轮次
+  useEffect(() => {
+    const onScroll = () => {
+      window.cancelAnimationFrame(activeRaf.current);
+      activeRaf.current = window.requestAnimationFrame(updateActive);
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('scroll', onScroll, true);
+      window.cancelAnimationFrame(activeRaf.current);
+    };
+  }, []);
+
+  // 测量会话区高度，尺寸变化时重算活动轮次
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const update = () => {
       setRailHeight(root.clientHeight);
-      recompute();
+      updateActive();
     };
     update();
     const observer = new ResizeObserver(update);
@@ -101,9 +134,17 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
     [],
   );
 
-  const open = (turnId: string): void => {
+  const openFromTick = (turnId: string, el: HTMLElement): void => {
     window.clearTimeout(closeTimer.current);
-    setHovered(turnId);
+    const root = rootRef.current;
+    if (!root) return;
+    const r = el.getBoundingClientRect();
+    const rootR = root.getBoundingClientRect();
+    setHovered({ turnId, top: r.top + r.height / 2 - rootR.top });
+  };
+  const openFromTip = (turnId: string): void => {
+    window.clearTimeout(closeTimer.current);
+    setHovered((prev) => (prev?.turnId === turnId ? prev : { turnId, top: 0 }));
   };
   const scheduleClose = (): void => {
     window.clearTimeout(closeTimer.current);
@@ -122,32 +163,40 @@ function TocView({ session, factory, getSettings }: TocViewProps) {
     );
   }
 
-  const hoveredEntry = hovered ? entries.find((entry) => entry.turnId === hovered) : undefined;
+  const hoveredEntry = hovered ? entries.find((entry) => entry.turnId === hovered.turnId) : undefined;
   const tipY =
-    hoveredEntry && railHeight > 0
-      ? clamp((positions[hoveredEntry.turnId] ?? 0) * railHeight, TIP_HALF, railHeight - TIP_HALF)
+    hovered && railHeight > 0
+      ? clamp(hovered.top, TIP_HALF, railHeight - TIP_HALF)
       : 0;
 
   return (
     <div className={`xdb--SessionToc xdb--SessionToc--${settings.side}`} ref={rootRef}>
       <div className="xdb--SessionTocRail" onMouseLeave={scheduleClose}>
-        {entries.map((entry) => (
-          <button
-            key={entry.turnId}
-            type="button"
-            className={`xdb--SessionTocTick${entry.status === 'running' ? ' xdb--SessionTocTick--running' : ''}${hovered === entry.turnId ? ' xdb--SessionTocTick--active' : ''}`}
-            style={{ top: `${(positions[entry.turnId] ?? 0) * 100}%` }}
-            onMouseEnter={() => open(entry.turnId)}
-            onClick={() => scrollToTurn(entry.turnId)}
-            aria-label={`跳转到第 ${entry.index} 轮`}
-          />
-        ))}
+        <div className="xdb--SessionTocList" style={{ height: entries.length * TICK_STEP }}>
+          {entries.map((entry, index) => (
+            <button
+              key={entry.turnId}
+              type="button"
+              className={`xdb--SessionTocTick${activeId === entry.turnId ? ' xdb--SessionTocTick--active' : ''}${hovered?.turnId === entry.turnId ? ' xdb--SessionTocTick--hovered' : ''}`}
+              style={{ top: index * TICK_STEP }}
+              onMouseEnter={(e) => openFromTick(entry.turnId, e.currentTarget)}
+              onClick={() => scrollToTurn(entry.turnId)}
+              aria-label={`跳转到第 ${entry.index} 条问题`}
+              aria-posinset={entry.index}
+              aria-setsize={entries.length}
+              aria-current={activeId === entry.turnId ? 'location' : undefined}
+              data-turn-id={entry.turnId}
+            >
+              <span className="xdb--SessionTocTickBar" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
       </div>
       {hoveredEntry && (
         <div
           className="xdb--SessionTocTip"
           style={{ top: tipY, maxHeight: Math.max(80, railHeight - 32) }}
-          onMouseEnter={() => open(hoveredEntry.turnId)}
+          onMouseEnter={() => openFromTip(hoveredEntry.turnId)}
           onMouseLeave={scheduleClose}
         >
           <span className="xdb--SessionTocTipIndex">{hoveredEntry.index}</span>
