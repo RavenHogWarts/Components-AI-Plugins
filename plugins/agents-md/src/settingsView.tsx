@@ -21,7 +21,7 @@ export function AgentsMdSettingsView(props: AgentsMdViewProps) {
     <SettingsSection header={`AGENTS.md 项目指南 · v${manifest.version ?? '0.0.0'}`}>
       <SettingSelect
         label="启用状态"
-        description="开启后，Agent 在仓库内执行任务前会自动读取根目录的项目工作指南并注入上下文"
+        description="开启后，在系统指令中追加仓库根目录的项目工作指南，Agent 执行任务前即可遵循"
         value={settings.enabled ? '1' : '0'}
         onChange={(event) => apply({ enabled: event.currentTarget.value === '1' })}
       >
@@ -35,13 +35,13 @@ export function AgentsMdSettingsView(props: AgentsMdViewProps) {
         onBlur={(event) => apply({ filename: event.currentTarget.value })}
       />
       <SettingText
-        label="最大注入字符数"
-        description="注入模型上下文的最大字符数，防止指南过大撑爆上下文"
+        label="最大注入行数"
+        description="只把指南前 N 行追加到系统指令；更多内容由 read_file 工具按需读取"
         type="number"
-        min={500}
-        max={100000}
-        value={settings.maxChars}
-        onBlur={(event) => apply({ maxChars: Number(event.currentTarget.value) })}
+        min={10}
+        max={5000}
+        value={settings.maxLines}
+        onBlur={(event) => apply({ maxLines: Number(event.currentTarget.value) })}
       />
       <SettingItem>
         <SettingItem.Label>恢复默认</SettingItem.Label>

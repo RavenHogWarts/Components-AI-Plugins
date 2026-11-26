@@ -1,16 +1,16 @@
 export interface PluginSettings {
-  /** 是否自动读取仓库根目录的项目工作指南并注入模型上下文 */
+  /** 是否自动读取仓库根目录的项目工作指南并追加到系统指令 */
   enabled: boolean;
   /** 指南文件名（位于仓库根目录） */
   filename: string;
-  /** 注入内容的最大字符数，避免撑爆模型上下文 */
-  maxChars: number;
+  /** 注入指南的最大行数（其余内容由 read_file 工具按需读取） */
+  maxLines: number;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   enabled: true,
   filename: 'AGENTS.md',
-  maxChars: 20000,
+  maxLines: 200,
 };
 
 function asText(value: unknown, fallback: string): string {
@@ -29,6 +29,6 @@ export function loadSettings(raw: unknown): PluginSettings {
   return {
     enabled: source.enabled !== false,
     filename: asText(source.filename, DEFAULT_SETTINGS.filename),
-    maxChars: asNumber(source.maxChars, DEFAULT_SETTINGS.maxChars, 500, 100000),
+    maxLines: asNumber(source.maxLines, DEFAULT_SETTINGS.maxLines, 10, 5000),
   };
 }

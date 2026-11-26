@@ -6,6 +6,9 @@ import type { WorkspaceFileAccess } from 'ai-plugin-kit';
 import { loadSettings, DEFAULT_SETTINGS, type PluginSettings } from './settings';
 import { AgentsMdSettingsView } from './settingsView';
 
+/** 文件读取 Agent 工具名（由 plugin.file-read-tools 提供，支持 path/offset/limit）。 */
+const READ_TOOL_NAME = 'read_file';
+
 export default class AgentsMdPlugin extends Plugin {
   static inject = ['workspaceManager'] as const;
 
@@ -14,14 +17,23 @@ export default class AgentsMdPlugin extends Plugin {
 
   constructor(dependencies: Record<string, unknown>, api: PluginContext) {
     super(dependencies, api);
-    // 复用 ai-plugin-kit 的通用“工作区根目录指南注入”能力；文件名/上限/启用随设置实时读取
+    // 复用 ai-plugin-kit 的通用“工作区根目录指南注入”能力：
+    // 追加到系统指令，只注入前 maxLines 行，其余内容提示用 read_file 按需读取
     this.transformer = createWorkspaceGuideTransformer({
       id: 'agents-md.guide',
       intent: '项目工作指南 AGENTS.md',
       workspace: dependencies['workspaceManager'] as WorkspaceFileAccess,
       isEnabled: () => this.store?.getSettings().enabled ?? true,
-      filename: () => this.store?.getSettings().filename ?? 'AGENTS.md',
-      maxChars: () => this.store?.getSettings().maxChars ?? DEFAULT_SETTINGS.maxChars,
+      filename: () => this.store?.getSettings().filename ?? DEFAULT_SETTINGS.filename,
+      maxLines: () => this.store?.getSettings().maxLines ?? DEFAULT_SETTINGS.maxLines,
+      matchRole: 'system',
+      position: 'append',
+      readMoreHint: ({ path, filename, totalLines, shownLines, remainingLines }) =>
+        [
+          '',
+          `[提示] ${filename} 共 ${totalLines} 行，已展示前 ${shownLines} 行，剩余 ${remainingLines} 行未注入。`,
+          `如需查看后续内容，请用 ${READ_TOOL_NAME} 工具按需读取：${READ_TOOL_NAME}({ path: "${path}", offset: ${shownLines + 1}, limit: ${remainingLines} })`,
+        ].join('\n'),
     });
   }
 
