@@ -112,6 +112,12 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 ## 已发布插件
 
 <!-- PLUGIN-LIST:START -->
+### agents-md（v0.1.0）
+
+自动读取仓库根目录的 AGENTS.md 作为项目工作指南，在 Agent 执行仓库任务前注入模型上下文。
+
+[![下载 agents-md-v0.1.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=agents-md-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/agents-md-v0.1.0/agents-md-v0.1.0.zip)
+
 ### ai-usage（v0.3.3）
 
 监控已配置模型的用量（GLM/DeepSeek/Codex CLI），支持正向/逆向显示与按模型开关
