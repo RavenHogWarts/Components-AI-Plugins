@@ -1,4 +1,4 @@
-/* 工作区管理插件：删除按钮仅在本插件作用域内着色，避免影响应用其他控件。 */
+/* 工作区管理插件：删除按钮与拖拽提示，作用域限定在本插件，避免影响应用其他控件。 */
 .xdb--WSDeleteBtn {
   color: var(--xdb-color-muted, currentColor);
 }
@@ -10,4 +10,11 @@
 .xdb--WSDeleteBtn[disabled] {
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* 拖拽放置目标高亮：工作区分支 */
+.xdb--SessionWorkspaceBranch.xdb--WSDropTarget {
+  outline: 2px dashed var(--xdb-color-accent, #5b9dd9);
+  outline-offset: -2px;
+  background-color: var(--xdb-color-surface-raised, rgba(128, 128, 128, 0.08));
 }

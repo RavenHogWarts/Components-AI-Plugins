@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "workspace-management",
   "description": "在会话列表中为已添加的工作区提供删除按钮（默认工作区除外）。",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "extensions": {
     "xdb-ai": {},
     "io.github.vran-dev.xdb": {

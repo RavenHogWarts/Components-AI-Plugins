@@ -149,11 +149,11 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 
 [![下载 turn-loading-style-v0.2.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=turn-loading-style-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/turn-loading-style-v0.2.1/turn-loading-style-v0.2.1.zip)
 
-### workspace-management（v0.1.0）
+### workspace-management（v0.2.0）
 
 在会话列表中为已添加的工作区提供删除按钮（默认工作区除外）。
 
-[![下载 workspace-management-v0.1.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=workspace-management-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/workspace-management-v0.1.0/workspace-management-v0.1.0.zip)
+[![下载 workspace-management-v0.2.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=workspace-management-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/workspace-management-v0.2.0/workspace-management-v0.2.0.zip)
 
 <!-- PLUGIN-LIST:END -->
 
