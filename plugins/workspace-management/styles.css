@@ -1,0 +1,13 @@
+/* 工作区管理插件：删除按钮仅在本插件作用域内着色，避免影响应用其他控件。 */
+.xdb--WSDeleteBtn {
+  color: var(--xdb-color-muted, currentColor);
+}
+
+.xdb--WSDeleteBtn:hover {
+  color: var(--xdb-color-danger, #e5484d);
+}
+
+.xdb--WSDeleteBtn[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
