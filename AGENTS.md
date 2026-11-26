@@ -28,12 +28,20 @@ pnpm install                                  # 首次
 pnpm new my-plugin 显示名 描述                # 生成 plugins/my-plugin（含版本/扩展元数据/kit 依赖）
 pnpm --filter my-plugin typecheck             # tsc --noEmit
 pnpm --filter my-plugin deploy                # 类型检查 + 生产构建 + 复制到目标库
-pnpm --filter my-plugin release               # 类型检查 + 生产构建 + 打包为分发 zip
-pnpm --filter my-plugin release:gh            # 将本地 zip 发布为 GitHub Release（需 gh 已登录）
+pnpm --filter my-plugin release               # 类型检查 + 生产构建 + 打包为分发 zip（由 CI 的 Release Plugin workflow 调用）
+pnpm --filter my-plugin release:gh            # 将本地 zip 发布为 GitHub Release（需 gh 已登录；由 CI 调用，已存在则跳过）
 pnpm docs:readme                              # 从各 plugin.json 重新生成 README 插件列表（含未发布；发版后跑一次并提交）
 pnpm --filter my-plugin watch                 # 源码变更自动构建并部署
 pnpm --filter my-plugin build:dev             # 调试构建（带 inline sourcemap）
 ```
+
+**发版流程（标准，无需手动发布）**：提交后 `git push origin main`，再打 tag 并推送：
+
+```bash
+git tag <name>-v<version> && git push origin <name>-v<version>
+```
+
+GitHub Actions 的 `release.yml` 工作流（触发条件 `push: tags: ['*-v*']`）会自动解析插件名/版本 → `pnpm --filter <name> release` 构建 zip → `gh-release.mjs` 发布 GitHub Release（tag 已存在则跳过）→ 更新并提交 README 插件列表。**不要手动跑 `release`/`release:gh` 发版**，这些命令由 CI 调用；本地仅用于调试构建。tag 规范 `<name>-v<version>`（如 `workspace-management-v0.3.0`）。
 
 **部署后需在应用内启用/重载**：在应用的 AI 设置里开关一次；或（若你正运行于应用的 Creator Agent）调用 `pluginManager.refresh()` → `setEnabled(name, true)` / `reload(name)`。其他 IDE 无法直接操作应用，请让用户在设置里切换。
 
@@ -154,7 +162,7 @@ order：官方项 conversation-agent=-1000、conversation-usage=1000；自己取
 ## 7. 验证清单（每个插件发布前）
 
 - [ ] `typecheck` 零错误；`deploy` 成功
-- [ ] `release` 成功，且 zip 内容与部署产物一致（含可选 `styles.css`/`assets/`）
+- [ ] `release` 本地运行成功，且 zip 内容与部署产物一致（含可选 `styles.css`/`assets/`）；实际发版走「推送 + 打 tag，CI 自动发布」（见 §2 发版流程）
 - [ ] `pnpm docs:readme` 运行，README 插件列表已更新并提交（新插件/版本变更后必做；`release`/`new` 不会自动调用它）
 - [ ] 应用内：启用后 `loaded` 且 `errors: []`
 - [ ] 核心功能实际触发一次（不要只看加载状态）
