@@ -1,10 +1,12 @@
-/* 工作区管理插件：删除按钮与拖拽提示，作用域限定在本插件，避免影响应用其他控件。 */
+/* 工作区管理插件：删除按钮与拖拽提示，作用域限定在本插件，避免影响应用其他控件。
+   颜色一律用 Obsidian 主题变量，随用户主题自适应，不写死色值。 */
+
 .xdb--WSDeleteBtn {
-  color: var(--xdb-color-muted, currentColor);
+  color: var(--text-muted);
 }
 
 .xdb--WSDeleteBtn:hover {
-  color: var(--xdb-color-danger, #e5484d);
+  color: var(--color-red);
 }
 
 .xdb--WSDeleteBtn[disabled] {
@@ -14,7 +16,54 @@
 
 /* 拖拽放置目标高亮：工作区分支 */
 .xdb--SessionWorkspaceBranch.xdb--WSDropTarget {
-  outline: 2px dashed var(--xdb-color-accent, #5b9dd9);
+  outline: 2px dashed var(--interactive-accent);
   outline-offset: -2px;
-  background-color: var(--xdb-color-surface-raised, rgba(128, 128, 128, 0.08));
+  background-color: var(--background-modifier-hover);
+}
+
+/* 删除确认弹窗（Portal 到 body + fixed，避免被容器裁切） */
+.xdb--WSModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: var(--background-modifier-cover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xdb--WSModal {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 16px;
+  width: min(440px, calc(100vw - 32px));
+  box-shadow: var(--shadow-l);
+}
+
+.xdb--WSModalTitle {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.xdb--WSModalBody {
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.xdb--WSModalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.xdb--WSDeleteConfirm {
+  color: var(--text-on-accent);
+  background: var(--color-red);
+}
+
+.xdb--WSDeleteConfirm:hover {
+  filter: brightness(0.9);
 }
