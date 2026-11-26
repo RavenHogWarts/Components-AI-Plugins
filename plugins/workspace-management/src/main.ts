@@ -15,6 +15,7 @@ interface WorkspaceFileApi {
   readText(path: string): Promise<string>;
   write(path: string, content: string | Uint8Array): Promise<void>;
   process(path: string, change: (current: string | undefined) => string | undefined): Promise<void>;
+  remove(path: string): Promise<void>;
 }
 
 interface WorkspaceManagerApi {
@@ -27,11 +28,14 @@ interface WorkspaceManagerApi {
 
 interface SessionRecord {
   readonly id: string;
+  readonly title?: string;
   readonly workspaceId?: string;
 }
 
 interface SessionManagerApi {
   list(): Promise<readonly SessionRecord[]>;
+  getById(id: string): Promise<SessionRecord | null>;
+  delete(id: string): Promise<void>;
 }
 
 interface AppDataManagerApi {
@@ -198,11 +202,10 @@ export default class WorkspaceManagementPlugin extends Plugin {
   // ===== 删除工作区 =====
 
   private async handleDelete(ws: WorkspaceData, btn: HTMLButtonElement): Promise<void> {
-    const ok = window.confirm(
-      `确定删除工作区「${ws.name}」吗？\n其会话将归入「${REMOVED_LABEL}」，不会被删除。`,
-    );
-    if (!ok) return;
+    const decision = await this.confirmWorkspaceDelete(ws);
+    if (!decision) return;
     btn.disabled = true;
+    const failures: string[] = [];
     try {
       let changed = false;
       await this.fa.process(CONFIG_PATH, (current) => {
@@ -212,18 +215,122 @@ export default class WorkspaceManagementPlugin extends Plugin {
         changed = true;
         return JSON.stringify(updated, null, 2);
       });
-      if (!changed) return;
-      // 先把该工作区的会话归入虚拟分组，再刷新工作区注册。
-      const sessions = await this.sm.list();
-      for (const session of sessions) {
-        if (session.workspaceId === ws.id) await this.setSessionWorkspace(session.id, REMOVED_ID);
+      if (!changed) {
+        btn.disabled = false;
+        return;
       }
+      const sessions = await this.sm.list();
+      const affected = sessions.filter((session) => session.workspaceId === ws.id);
+      for (const session of affected) {
+        try {
+          if (decision === 'withSessions') {
+            // 连同会话一起删除：删除会话记录；无论记录删除是否抛错，都清理其文件夹残留，
+            // 确保 inbox.json/日志等连同文件夹一起删除。
+            try {
+              await this.sm.delete(session.id);
+            } finally {
+              await this.removeSessionFolder(session.id);
+            }
+          } else {
+            // 仅删除工作区：会话归入虚拟"已删除工作区"分组。
+            await this.setSessionWorkspace(session.id, REMOVED_ID);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (decision === 'withSessions') {
+            // sm.delete 可能在记录删除后因文件夹清理失败而抛错；此时会话已从列表删除，
+            // 仅记录警告，不要误报为用户可见的失败。
+            const stillExists = await this.sm
+              .getById(session.id)
+              .then((s) => s !== null)
+              .catch(() => false);
+            if (stillExists) failures.push(`${session.title || session.id}: ${message}`);
+            else console.warn(`[workspace-management] 会话 ${session.id} 已删除，但文件夹清理失败`, error);
+          } else {
+            failures.push(`${session.title || session.id}: ${message}`);
+          }
+        }
+      }
+      // 始终刷新工作区注册，即使部分会话处理失败，避免工作区残留在状态里。
       await this.wm.load();
     } catch (error) {
       console.error('[workspace-management] 删除工作区失败', error);
       btn.disabled = false;
       window.alert(`删除工作区失败：${error instanceof Error ? error.message : String(error)}`);
+      return;
     }
+    if (failures.length) {
+      console.warn('[workspace-management] 部分会话处理失败', failures);
+      window.alert(`工作区已删除，但部分会话处理失败：\n${failures.slice(0, 5).join('\n')}`);
+    }
+  }
+
+  /**
+   * 自绘删除确认弹窗（Portal 到 body + fixed），提供两种处理方式与取消。
+   * 应用无现成可用的选择对话框（window.confirm 只能返回布尔），故用应用按钮样式自绘。
+   * @returns 'workspace' 仅删工作区（会话归入已删除工作区）| 'withSessions' 连同会话删除 | null 取消。
+   */
+  private confirmWorkspaceDelete(ws: WorkspaceData): Promise<'workspace' | 'withSessions' | null> {
+    return new Promise((resolve) => {
+      const doc = document;
+      const backdrop = doc.createElement('div');
+      backdrop.className = 'xdb--WSModalBackdrop';
+      const modal = doc.createElement('div');
+      modal.className = 'xdb--WSModal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      const title = doc.createElement('div');
+      title.className = 'xdb--WSModalTitle';
+      title.textContent = `删除工作区「${ws.name}」`;
+      const body = doc.createElement('div');
+      body.className = 'xdb--WSModalBody';
+      body.textContent = '工作区将从列表中移除。请选择其会话的处理方式：';
+      const actions = doc.createElement('div');
+      actions.className = 'xdb--WSModalActions';
+      let settled = false;
+      let keyHandler: ((event: KeyboardEvent) => void) | null = null;
+      const close = (result: 'workspace' | 'withSessions' | null): void => {
+        if (settled) return;
+        settled = true;
+        if (keyHandler) doc.removeEventListener('keydown', keyHandler);
+        backdrop.remove();
+        resolve(result);
+      };
+      const makeButton = (
+        act: 'cancel' | 'workspace' | 'withSessions',
+        label: string,
+        extraClass = '',
+        variant = 'ghost',
+        color = 'default',
+      ): HTMLButtonElement => {
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = `xdb--Button ${extraClass}`.trim();
+        button.setAttribute('data-act', act);
+        button.setAttribute('data-variant', variant);
+        button.setAttribute('data-color', color);
+        button.setAttribute('data-size', 'sm');
+        button.textContent = label;
+        button.addEventListener('click', () =>
+          close(act === 'cancel' ? null : act === 'withSessions' ? 'withSessions' : 'workspace'),
+        );
+        return button;
+      };
+      actions.appendChild(makeButton('cancel', '取消'));
+      actions.appendChild(makeButton('workspace', '仅删除工作区（会话归入已删除工作区）', '', 'soft'));
+      actions.appendChild(makeButton('withSessions', '连同会话一起删除', 'xdb--WSDeleteConfirm', 'solid', 'danger'));
+      modal.append(title, body, actions);
+      backdrop.appendChild(modal);
+      const onKey = (event: KeyboardEvent): void => {
+        if (event.key === 'Escape') close(null);
+      };
+      keyHandler = onKey;
+      backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) close(null);
+      });
+      doc.addEventListener('keydown', keyHandler);
+      doc.body.appendChild(backdrop);
+    });
   }
 
   /** 合并所有无主会话（workspaceId 已不在注册中）到虚拟分组。 */
@@ -257,6 +364,19 @@ export default class WorkspaceManagementPlugin extends Plugin {
     if (data.workspaceId === workspaceId) return;
     data.workspaceId = workspaceId;
     await this.fa.write(file, JSON.stringify(data, null, 2));
+  }
+
+  /**
+   * 强制删除会话文件夹（含 session.json、inbox.json、日志等）。
+   * sm.delete 依赖 files.trash，可能在记录删除后仍留下文件夹残留；此处用 remove 永久删除兜底。
+   * 文件夹已不存在时静默返回。
+   */
+  private async removeSessionFolder(sessionId: string): Promise<void> {
+    try {
+      await this.fa.remove(`${this.sessionsRel}/${sessionId}`);
+    } catch (error) {
+      console.warn(`[workspace-management] 清理会话文件夹失败: ${sessionId}`, error);
+    }
   }
 
   // ===== 拖拽改归属 =====
