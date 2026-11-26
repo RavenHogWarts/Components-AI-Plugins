@@ -9,7 +9,7 @@ plugins/<name>/        插件工程（只放业务代码）
   ├── plugin.json      清单：name + version + extensions(displayName/platforms)
   ├── src/             TypeScript 源码；入口 main.ts，default export Plugin 子类
   └── build.mjs        两行：调用 scripts/build-kit.mjs
-packages/ai-plugin-kit 共享包（设置 UI/存储/弹层/轮询/格式化/视图挂载）
+packages/ai-plugin-kit 共享包（设置 UI/存储/弹层/轮询/格式化/视图挂载/工作区指南注入）
 vendor/ai-api/         @obsidian-components/ai-api 类型声明（npm 未发布；运行时由插件加载器提供）
 templates/plugin/      新插件模板
 scripts/               build-kit（统一构建）/ deploy（复制到目标库）/ release（打包 zip）/ new（脚手架）
