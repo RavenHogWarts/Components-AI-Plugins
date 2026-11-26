@@ -43,6 +43,9 @@ const CONFIG_PATH = '.obsidian/plugins/components/workspace.json';
 /** 被删除工作区会话的归组标识（虚拟分组，不写入 workspace.json）。 */
 const REMOVED_ID = 'xdb-removed-workspaces';
 const REMOVED_LABEL = '已删除工作区';
+/** 应用对无主会话分组的默认标签与角标（插件启用时改名为 REMOVED_LABEL 并移除角标）。 */
+const ORPHAN_LABEL = '工作区不可用';
+const ORPHAN_CHIP_TEXT = '本机不可用';
 const DELETE_BTN_CLASS = 'xdb--WSDeleteBtn';
 const DELETE_ATTR = 'data-ws-delete';
 
@@ -100,6 +103,8 @@ export default class WorkspaceManagementPlugin extends Plugin {
     document.querySelectorAll('.xdb--WSDropTarget').forEach((el) => el.classList.remove('xdb--WSDropTarget'));
     document.querySelectorAll('[data-slot="session-list-item"]').forEach((el) => el.removeAttribute('draggable'));
     this.draggedSessionId = null;
+    // 恢复"已删除工作区"分组的默认标签与角标：标签是插件 DOM 改动，禁用后应回到应用默认，避免残留。
+    this.restoreRemovedBranch();
   }
 
   // ===== 扫描与注入 =====
@@ -170,6 +175,24 @@ export default class WorkspaceManagementPlugin extends Plugin {
     const label = branch.querySelector('.xdb--SessionListLabel');
     if (label && label.textContent !== REMOVED_LABEL) label.textContent = REMOVED_LABEL;
     branch.querySelector('.xdb--Chip')?.remove();
+  }
+
+  /** 插件禁用时恢复"已删除工作区"分组的默认标签与"本机不可用"角标，避免 DOM 改动残留。 */
+  private restoreRemovedBranch(): void {
+    const branch = document.querySelector<HTMLElement>(
+      `[data-session-id="workspace:${REMOVED_ID}"]`,
+    );
+    if (!branch) return;
+    const label = branch.querySelector('.xdb--SessionListLabel');
+    if (label && label.textContent === REMOVED_LABEL) label.textContent = ORPHAN_LABEL;
+    if (label && !branch.querySelector('.xdb--Chip')) {
+      const chip = label.ownerDocument.createElement('span');
+      chip.setAttribute('data-variant', 'plain');
+      chip.setAttribute('data-color', 'warning');
+      chip.className = 'xdb--Chip';
+      chip.textContent = ORPHAN_CHIP_TEXT;
+      label.after(chip);
+    }
   }
 
   // ===== 删除工作区 =====
