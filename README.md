@@ -84,7 +84,7 @@ zip 内含（与 `<VAULT_ROOT>/.agents/plugins/<name>/` 一一对应）：
 | `mountSettingsView(api, form, getInput)`                 | 标准设置视图挂载（density→size 映射 + 包装类样板）                          |
 | `Popover`                                                | 通用浮层：Portal 到 body、锚定 fixed、外部点击/Esc 关闭、resize 重对齐      |
 | `PollingStore<T>`                                        | 通用轮询存储：稳定快照 + subscribe，供 useSyncExternalStore                 |
-| `createWorkspaceGuideTransformer(opts)`                  | 注入工作区根目录指南文件为上下文（AGENTS.md 等）：匹配 user 消息，prepend `<system_reminder>` 块；含 `WorkspaceFileAccess` / `WorkspaceGuideTransformerOptions` 类型与 `joinWorkspacePath` |
+| `createWorkspaceGuideTransformer(opts)`                  | 注入工作区根目录指南文件为上下文（AGENTS.md 等）：匹配 role（默认 user，可 system），prepend/append `<system_reminder>` 块；按行数/字符数截断，截断时用 `readMoreHint` 生成“读取更多”提示；含 `WorkspaceFileAccess` / `WorkspaceGuideTransformerOptions` / `WorkspaceGuideReadMoreInfo` 类型与 `joinWorkspacePath` |
 | `formatPercent/formatClock/formatCountdown/formatAmount` | 展示格式化                                                                  |
 | `SettingsSection / SettingItem(.Label/.Control)`         | 官方 `xdb--Setting*` 布局组件（应用全局样式）                               |
 | `SettingText / SettingTextarea / SettingSelect / Button` | 官方风格控件（select 自带 `dropdown` 类，Button 支持原生 data 属性）        |
