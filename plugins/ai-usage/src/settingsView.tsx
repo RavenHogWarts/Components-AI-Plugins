@@ -9,10 +9,12 @@ export interface AiUsageViewProps {
   app: AiApp;
   manifest: PluginManifest;
   getTargets: () => readonly UsageTarget[];
+  /** 说明块正文渲染器（markdownRenderer.render 绑定），用于 MD/HTML */
+  renderMarkdown?: (content: string, container: HTMLElement, signal: AbortSignal) => Promise<void>;
 }
 
 export function AiUsageSettingsView(props: AiUsageViewProps) {
-  const { store, manifest, getTargets } = props;
+  const { store, manifest, getTargets, renderMarkdown } = props;
   const [settings, setSettings] = useState<PluginSettings>(() => store.getSettings());
   const [targets, setTargets] = useState<readonly UsageTarget[]>(() => getTargets());
   const apply = (patch: Partial<PluginSettings>): void => {
@@ -103,11 +105,22 @@ export function AiUsageSettingsView(props: AiUsageViewProps) {
       <SettingsSection header="说明">
         <SettingNote
           label="支持的用量来源"
-          description="GLM（open.bigmodel.cn / api.z.ai）· DeepSeek（api.deepseek.com）· Copilot（GitHub Copilot 连接）· Codex CLI"
+          description={[
+            '- GLM（open.bigmodel.cn / api.z.ai）',
+            '- DeepSeek（api.deepseek.com）',
+            '- Copilot（GitHub Copilot 连接）',
+            '- Codex CLI',
+          ].join('\n')}
+          render={renderMarkdown}
         />
         <SettingNote
           label="凭据来源"
-          description="GLM/DeepSeek 复用已配置模型连接的 API Key；Copilot 复用 GitHub Copilot 插件的授权；第三方代理连接不支持用量查询"
+          description={[
+            '- GLM/DeepSeek：复用已配置模型连接的 API Key',
+            '- Copilot：复用 GitHub Copilot 插件的授权',
+            '- 第三方代理连接：不支持用量查询',
+          ].join('\n')}
+          render={renderMarkdown}
         />
       </SettingsSection>
     </>

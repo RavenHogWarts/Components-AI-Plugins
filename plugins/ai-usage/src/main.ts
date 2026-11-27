@@ -176,17 +176,27 @@ export default class AiUsagePlugin extends Plugin {
     settingsStore.subscribe(syncReaction);
 
     const getTargetsRef = (): readonly UsageTarget[] => getTargets();
+    // markdownRenderer 可选：设置说明块用它渲染 MD/HTML，缺失时说明块回退纯文本
+    const markdownRenderer = api.getService('markdownRenderer') as
+      | { render(content: string, container: HTMLElement, signal: AbortSignal): Promise<void> }
+      | undefined;
+    const renderMarkdown = markdownRenderer
+      ? (content: string, container: HTMLElement, signal: AbortSignal): Promise<void> =>
+          markdownRenderer.render(content, container, signal)
+      : undefined;
     const Form = createReactView((input: {
       store: SettingsStore<PluginSettings>;
       app: AiApp;
       manifest: PluginManifest;
       getTargets: () => readonly UsageTarget[];
+      renderMarkdown?: (content: string, container: HTMLElement, signal: AbortSignal) => Promise<void>;
     }) => createElement(AiUsageSettingsView, input));
     mountSettingsView(api, Form, () => ({
       app,
       manifest: api.manifest,
       store: settingsStore,
       getTargets: getTargetsRef,
+      renderMarkdown,
     }));
   }
 

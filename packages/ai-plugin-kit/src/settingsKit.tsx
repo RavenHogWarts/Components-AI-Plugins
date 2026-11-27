@@ -2,7 +2,9 @@ import React, {
   createContext,
   forwardRef,
   useContext,
+  useEffect,
   useId,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -308,25 +310,48 @@ export const SettingTextarea = forwardRef<HTMLTextAreaElement, FieldProps & Reac
 /**
  * 说明块：以官方设置行样式展示静态说明（标题 + 正文），替代用禁用下拉/文本框占位的做法。
  * 非表单控件（无 controlId 关联），默认纵向排列（标题在上、正文在下）。
+ * 正文为字符串且提供 render 时，经 render（如 markdownRenderer.render）渲染为 MD/HTML；
+ * 否则按纯文本显示并保留换行（white-space: pre-wrap）。
  */
-export const SettingNote = forwardRef<HTMLDivElement, FieldProps & React.HTMLAttributes<HTMLDivElement>>(
-  function SettingNote(props, ref) {
-    const { label, description, error, disabled, size, orientation = 'vertical', id, className, ...rest } = props;
-    return (
-      <SettingItem
-        ref={ref}
-        size={size}
-        orientation={orientation}
-        error={error}
-        disabled={disabled}
-        className={className}
-        {...rest}
-      >
-        <SettingItem.Label description={description}>{label}</SettingItem.Label>
-      </SettingItem>
-    );
-  },
-);
+export const SettingNote = forwardRef<
+  HTMLDivElement,
+  FieldProps &
+    React.HTMLAttributes<HTMLDivElement> & {
+      /** 正文渲染器（如 markdownRenderer.render 的绑定）；字符串正文经其渲染为 MD/HTML，信号由组件管理 */
+      render?: (content: string, container: HTMLElement, signal: AbortSignal) => Promise<void> | void;
+    }
+>(function SettingNote(props, ref) {
+  const { label, description, error, disabled, size, orientation = 'vertical', id, className, render, ...rest } = props;
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const body = typeof description === 'string' ? description : null;
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!render || body == null || !el) return;
+    const controller = new AbortController();
+    void Promise.resolve(render(body, el, controller.signal)).catch(() => {});
+    return () => controller.abort();
+  }, [render, body]);
+  return (
+    <SettingItem
+      ref={ref}
+      size={size}
+      orientation={orientation}
+      error={error}
+      disabled={disabled}
+      className={className}
+      {...rest}
+    >
+      <SettingItem.Label>{label}</SettingItem.Label>
+      {render && body != null ? (
+        <div className="xdb--SettingNoteBody" ref={bodyRef} />
+      ) : description != null ? (
+        <p className="xdb--SettingRowDescription" style={{ whiteSpace: 'pre-wrap' }}>
+          {description}
+        </p>
+      ) : null}
+    </SettingItem>
+  );
+});
 
 /**
  * 按钮（官方 xdb--Button 皮肤）。variant：solid/outline/ghost；
