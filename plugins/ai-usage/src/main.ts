@@ -9,6 +9,7 @@ import {
   fetchDeepseekReading,
   fetchGlmReading,
   probeCodex,
+  type Reading,
 } from './fetchers';
 import { classifyConnections, codexTarget, COPILOT_TOKEN_SECRET, type UsageTarget } from './providers';
 import { isEnabled, loadSettings, type FooterPosition, type PluginSettings } from './settings';
@@ -95,6 +96,13 @@ export default class AiUsagePlugin extends Plugin {
         ? [...list, codexTarget(settings.codexCommandPath)]
         : list;
     };
+    // 按目标分发到对应读取实现（保持行为一致，仅提取以便阅读）
+    const readTarget = async (target: UsageTarget, codexCommandPath: string): Promise<Reading> => {
+      if (target.kind === 'glm') return fetchGlmReading(app.httpClient, target);
+      if (target.kind === 'deepseek') return fetchDeepseekReading(app.httpClient, target);
+      if (target.kind === 'copilot') return fetchCopilotReading(app.httpClient, requireCopilotToken());
+      return fetchCodexReading(codexCommandPath);
+    };
     // Codex 可用性放在 read() 内探测（结果按命令缓存）：避免每次列出目标都 spawn 一次探测进程
     const read = async (): Promise<readonly ProviderStatus[]> => {
       const settings = settingsStore.getSettings();
@@ -106,14 +114,7 @@ export default class AiUsagePlugin extends Plugin {
         targets.map(async (target): Promise<ProviderStatus> => {
           const base = { key: target.key, title: target.title, subtitle: target.subtitle, kind: target.kind };
           try {
-            const reading =
-              target.kind === 'glm'
-                ? await fetchGlmReading(app.httpClient, target)
-                : target.kind === 'deepseek'
-                  ? await fetchDeepseekReading(app.httpClient, target)
-                  : target.kind === 'copilot'
-                    ? await fetchCopilotReading(app.httpClient, requireCopilotToken())
-                    : await fetchCodexReading(settings.codexCommandPath);
+            const reading = await readTarget(target, settings.codexCommandPath);
             return { ...base, result: { type: 'ok', reading } };
           } catch (error) {
             return { ...base, result: { type: 'error', message: failureMessage(error, target) } };

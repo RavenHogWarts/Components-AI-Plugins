@@ -100,6 +100,10 @@ function glmWindowLabel(type: string): string {
   return '额度';
 }
 
+/**
+ * 读取 GLM 用量（open.bigmodel.cn / api.z.ai）。
+ * 凭据来自连接 apiKey（`Authorization` 头）；端点失败/非 200 抛错，由调用方转错误卡片。
+ */
 export async function fetchGlmReading(http: HttpClient, target: UsageTarget): Promise<Reading> {
   const payload = await getJson(http, `${glmEndpoint(target.region ?? 'intl')}/api/monitor/usage/quota/limit`, {
     accept: 'application/json',
@@ -161,6 +165,11 @@ const DEEPSEEK_AMOUNTS: ReadonlyArray<{ key: string; label: string }> = [
   { key: 'granted_balance', label: '赠送余额' },
 ];
 
+/**
+ * 读取 DeepSeek 余额（`GET /user/balance`）。
+ * 凭据来自连接 apiKey（`Bearer` 头）；余额字段为数字字符串，经 amountOf 解析；
+ * 失败抛错由调用方转错误卡片。
+ */
 export async function fetchDeepseekReading(http: HttpClient, target: UsageTarget): Promise<Reading> {
   const payload = await getJson(http, `${deepseekEndpoint()}/user/balance`, {
     accept: 'application/json',
@@ -258,7 +267,11 @@ function parseCopilotQuota(payload: unknown): CopilotQuota | undefined {
   return undefined;
 }
 
-/** 读取 GitHub Copilot 用量；accessToken 为 GitHub 访问令牌（来自 copilot 插件的 secretStorage） */
+/**
+ * 读取 GitHub Copilot 用量（`GET /copilot_internal/user`）。
+ * 凭据为 GitHub 访问令牌（`Authorization: token`），由 copilot 插件写入 Obsidian secretStorage，
+ * 调用方经 COPILOT_TOKEN_SECRET 读取后传入；无可用额度信息时抛错。
+ */
 export async function fetchCopilotReading(http: HttpClient, accessToken: string): Promise<Reading> {
   const payload = await getJson(http, COPILOT_USER_URL, {
     accept: 'application/json',
@@ -389,6 +402,10 @@ function withTimeoutMs<T>(promise: Promise<T>): Promise<T> {
   });
 }
 
+/**
+ * 读取 Codex CLI 用量：spawn `codex app-server`（read-only），经 stdio JSON-RPC
+ * `account/rateLimits/read` 读取；调用方需先用 canSpawnProcesses 判断可用。
+ */
 export async function fetchCodexReading(commandPath: string): Promise<Reading> {
   const command = commandPath.length > 0 ? commandPath : 'codex';
   const child = spawn(command, ['-s', 'read-only', '-a', 'never', 'app-server'], {

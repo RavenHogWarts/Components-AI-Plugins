@@ -121,7 +121,7 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 
 ### ai-usage（v0.3.3）
 
-监控已配置模型的用量（GLM/DeepSeek/Codex CLI），支持正向/逆向显示与按模型开关
+监控已配置模型的用量（GLM/DeepSeek/Codex CLI/GitHub Copilot），支持正向/逆向显示与按模型开关
 
 [![下载 ai-usage-v0.3.3.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=ai-usage-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/ai-usage-v0.3.3/ai-usage-v0.3.3.zip)
 
