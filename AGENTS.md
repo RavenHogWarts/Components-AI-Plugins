@@ -35,13 +35,15 @@ pnpm --filter my-plugin watch                 # 源码变更自动构建并部�
 pnpm --filter my-plugin build:dev             # 调试构建（带 inline sourcemap）
 ```
 
-**发版流程（标准，无需手动发布）**：提交后 `git push origin main`，再打 tag 并推送：
+**发版流程（标准，无需手动发布）**：提交后 `git push origin main`，再打 tag 并逐个推送（**禁止 `git push --tags` 一次推多个 tag**，GitHub Actions 不会为批量推送的 tag 触发工作流，实测 5 个 tag 一次推 → 0 个运行；必须一个插件一个 tag 单独 push）：
 
 ```bash
-git tag <name>-v<version> && git push origin <name>-v<version>
+git tag <name>-v<version>
+node scripts/release-tags.mjs <name>            # 逐个推送（多插件可一次传多个，脚本内部逐个 push 并间隔）
+# 或手动逐个：git push origin <name>-v<version>
 ```
 
-GitHub Actions 的 `release.yml` 工作流（触发条件 `push: tags: ['*-v*']`）会自动解析插件名/版本 → `pnpm --filter <name> release` 构建 zip → `gh-release.mjs` 发布 GitHub Release（tag 已存在则跳过）→ 更新并提交 README 插件列表。**不要手动跑 `release`/`release:gh` 发版**，这些命令由 CI 调用；本地仅用于调试构建。tag 规范 `<name>-v<version>`（如 `workspace-management-v0.3.0`）。
+GitHub Actions 的 `release.yml` 工作流（触发条件 `push: tags: ['*-v*']`）会自动解析插件名/版本 → `pnpm --filter <name> release` 构建 zip → `gh-release.mjs` 发布 GitHub Release（tag 已存在则跳过）→ 更新并提交 README 插件列表。**不要手动跑 `release`/`release:gh` 发版**，这些命令由 CI 调用；本地仅用于调试构建。tag 规范 `<name>-v<version>`（如 `workspace-management-v0.3.0`）。`scripts/release-tags.mjs` 会跳过已有 Release 的 tag，并清理上次批量推送遗留的孤儿远端 tag（删除后重推以恢复触发）。
 
 **部署后需在应用内启用/重载**：在应用的 AI 设置里开关一次；或（若你正运行于应用的 Creator Agent）调用 `pluginManager.refresh()` → `setEnabled(name, true)` / `reload(name)`。其他 IDE 无法直接操作应用，请让用户在设置里切换。
 
