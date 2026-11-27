@@ -16,6 +16,7 @@ interface WorkspaceFileApi {
   write(path: string, content: string | Uint8Array): Promise<void>;
   process(path: string, change: (current: string | undefined) => string | undefined): Promise<void>;
   remove(path: string): Promise<void>;
+  list(path: string): Promise<readonly unknown[]>;
 }
 
 interface WorkspaceManagerApi {
@@ -42,6 +43,11 @@ interface AppDataManagerApi {
   path(...parts: readonly string[]): string;
 }
 
+/** 事件总线：用于主动补发 session.removed（应用删除会话时可能未发布，导致列表要重启才刷新）。 */
+interface EventBusApi {
+  publish(message: { type: string; sessionId?: string }): Promise<void>;
+}
+
 /** 会话列表工作区配置文件（相对 Vault 根）。 */
 const CONFIG_PATH = '.obsidian/plugins/components/workspace.json';
 /** 被删除工作区会话的归组标识（虚拟分组，不写入 workspace.json）。 */
@@ -66,15 +72,24 @@ const TRASH_SVG = [
 ].join('');
 
 export default class WorkspaceManagementPlugin extends Plugin {
-  static inject = ['workspaceManager', 'sessionManager', 'appDataManager'] as const;
+  static inject = ['workspaceManager', 'sessionManager', 'appDataManager', 'eventBus'] as const;
 
   private wm!: WorkspaceManagerApi;
   private sm!: SessionManagerApi;
   private fa!: WorkspaceFileApi;
-  private sessionsRel!: string;
+  private appData!: AppDataManagerApi;
+  private eventBus?: EventBusApi;
   private observer: MutationObserver | null = null;
   private releaseWorkspace: (() => void) | undefined;
   private draggedSessionId: string | null = null;
+
+  /**
+   * 会话目录（相对 Vault 根）。不缓存：每次由 appDataManager 按当前 AI 基础目录配置解析，
+   * 用户改动 aiBaseFolder 后无需重载插件即可跟随。
+   */
+  private get sessionsRel(): string {
+    return this.appData.path('sessions');
+  }
 
   async onResolving(): Promise<void> {
     const wm = this.dependencies['workspaceManager'] as WorkspaceManagerApi | undefined;
@@ -84,7 +99,8 @@ export default class WorkspaceManagementPlugin extends Plugin {
     this.wm = wm;
     this.sm = sm;
     this.fa = wm.getWorkspaceFileApi();
-    this.sessionsRel = appData.path('sessions');
+    this.appData = appData;
+    this.eventBus = this.dependencies['eventBus'] as EventBusApi | undefined;
 
     this.observer = new MutationObserver((records) => {
       if (this.isRelevant(records)) this.scan();
@@ -231,6 +247,9 @@ export default class WorkspaceManagementPlugin extends Plugin {
             } finally {
               await this.removeSessionFolder(session.id);
             }
+            // 会话列表只在收到 session.removed 时刷新；应用删除会话可能未发布该事件
+            // （或发布前抛错），此时列表要等重启才消失。这里主动补发，保证立即刷新。
+            await this.publishSessionRemoved(session.id);
           } else {
             // 仅删除工作区：会话归入虚拟"已删除工作区"分组。
             await this.setSessionWorkspace(session.id, REMOVED_ID);
@@ -369,13 +388,41 @@ export default class WorkspaceManagementPlugin extends Plugin {
   /**
    * 强制删除会话文件夹（含 session.json、inbox.json、日志等）。
    * sm.delete 依赖 files.trash，可能在记录删除后仍留下文件夹残留；此处用 remove 永久删除兜底。
-   * 文件夹已不存在时静默返回。
+   * remove 偶发未生效时重试一次；文件夹已不存在时静默返回。
    */
   private async removeSessionFolder(sessionId: string): Promise<void> {
+    const target = `${this.sessionsRel}/${sessionId}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await this.fa.remove(target);
+      } catch (error) {
+        console.warn(`[workspace-management] 清理会话文件夹失败: ${sessionId}`, error);
+      }
+      if (!await this.sessionFolderExists(target)) return;
+    }
+  }
+
+  /** 会话文件夹是否存在。用 list 判定：fa.stat 对已删除文件夹会假阳性。 */
+  private async sessionFolderExists(target: string): Promise<boolean> {
     try {
-      await this.fa.remove(`${this.sessionsRel}/${sessionId}`);
+      await this.fa.list(target);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 补发 session.removed，确保会话列表立即刷新。
+   * 会话列表仅在该事件（经 eventBus 单 type 订阅）触发时重新读取并移除行；
+   * 若应用自身未发布（如删除前抛错），不发此事件则列表要等重启才消失。
+   * 会话仍存在时发布无害：列表重读会保留该行。
+   */
+  private async publishSessionRemoved(sessionId: string): Promise<void> {
+    try {
+      await this.eventBus?.publish({ type: 'session.removed', sessionId });
     } catch (error) {
-      console.warn(`[workspace-management] 清理会话文件夹失败: ${sessionId}`, error);
+      console.warn('[workspace-management] 补发 session.removed 失败', error);
     }
   }
 
