@@ -39,6 +39,17 @@ function numberOf(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+/** 金额字段可能为数字或数字字符串（DeepSeek 余额如 "110.00"），两者都解析为数字 */
+function amountOf(value: unknown): number | undefined {
+  const number = numberOf(value);
+  if (number !== undefined) return number;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
 function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
@@ -164,7 +175,7 @@ export async function fetchDeepseekReading(http: HttpClient, target: UsageTarget
     const currency = stringOf(info['currency']) ?? '';
     const symbol = currency === 'CNY' ? '¥' : currency.length > 0 ? `${currency} ` : '';
     for (const spec of DEEPSEEK_AMOUNTS) {
-      const value = numberOf(info[spec.key]);
+      const value = amountOf(info[spec.key]);
       if (value != null) {
         amounts.push({ label: spec.label, text: `${symbol}${value.toFixed(2)}` });
       }
