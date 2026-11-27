@@ -48,7 +48,20 @@ interface EventBusApi {
   publish(message: { type: string; sessionId?: string }): Promise<void>;
 }
 
-/** 会话列表工作区配置文件（相对 Vault 根）。 */
+/**
+ * 会话列表工作区配置文件（相对 Vault 根）。
+ *
+ * 为什么写 `.obsidian` 而不是用 app.vault.configDir 解析设置目录：
+ * 应用（components 插件）自身对 workspace.json 也硬编码 —— 其 workspaceManager 构造器
+ * `SNo = ".obsidian/plugins/components/workspace.json"`，`configPath = Gr(vaultRoot, SNo)`，
+ * 即始终取「Vault 根 + .obsidian」，并未走 configDir 解析。
+ * 因此这里必须镜像该常量：workspaceFileApi.process() 对相对路径从 Vault 根开始，
+ * join 出的结果与应用 configPath 逐字节相同（实测一致）。
+ * 若改用 app.vault.configDir 派生，在自定义设置目录（configDir ≠ .obsidian）的库里会
+ * 写到应用根本不读取的位置，反而分叉；且此类库里应用自身因 SNo 写死找不到 workspace.json
+ * 会直接报配置错误（configError），插件依赖 workspaceManager 也随之不可用。
+ * 故保持与应用一致是唯一正确行为。
+ */
 const CONFIG_PATH = '.obsidian/plugins/components/workspace.json';
 /** 被删除工作区会话的归组标识（虚拟分组，不写入 workspace.json）。 */
 const REMOVED_ID = 'xdb-removed-workspaces';
