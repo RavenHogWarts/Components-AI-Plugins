@@ -3,6 +3,7 @@ import React, {
   forwardRef,
   useContext,
   useId,
+  useState,
   type ComponentType,
   type ReactNode,
 } from 'react';
@@ -128,13 +129,13 @@ const SettingItemControl = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
  */
 export const SettingItem = Object.assign(
   forwardRef<HTMLDivElement, ItemProps>(function SettingItem(props, ref) {
-    const { size, orientation = 'horizontal', controlId, error, disabled = false, children, ...rest } = props;
+    const { size, orientation = 'horizontal', controlId, error, disabled = false, className, children, ...rest } = props;
     const value = useRowContext({ size, controlId, error, disabled });
     return (
       <SettingItemContext.Provider value={value}>
         <div
           ref={ref}
-          className="xdb--SettingRow"
+          className={['xdb--SettingRow', className].filter(Boolean).join(' ')}
           data-size={value.size}
           data-orientation={orientation}
           {...rest}
@@ -227,15 +228,38 @@ const TextareaControl = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
   },
 );
 
+/**
+ * 受控输入在未提供 onChange 时的可编辑草稿：
+ * 允许键入/选中/删除，失焦由调用方 onBlur 提交；外部 value 变化时同步草稿。
+ * 采用「渲染期调整状态」模式，避免受控 value 与草稿不同步的闪烁。
+ */
+function useDraftInput<T>(value: T | undefined): [T | undefined, (next: T) => void] {
+  const [draft, setDraft] = useState<T | undefined>(value);
+  const [previous, setPrevious] = useState<T | undefined>(value);
+  if (previous !== value) {
+    setPrevious(value);
+    setDraft(value);
+  }
+  return [draft, setDraft];
+}
+
 /** 单行文本/数字输入行；type="number" 时配合 min/max 使用，值在 onBlur 时提交 */
 export const SettingText = forwardRef<HTMLInputElement, FieldProps & React.InputHTMLAttributes<HTMLInputElement>>(
   function SettingText(props, ref) {
-    const { label, description, error, disabled, size, orientation, id, ...rest } = props;
+    const { label, description, error, disabled, size, orientation, id, value, onChange, ...rest } = props;
+    // 受控但未提供 onChange 时内置草稿：React 对「有 value 无 onChange」的输入视为只读，无法编辑
+    const editable = value !== undefined && onChange === undefined;
+    const [draft, setDraft] = useDraftInput(value);
     return (
       <SettingItem size={size} orientation={orientation} error={error} disabled={disabled} controlId={id}>
         <SettingItem.Label description={description}>{label}</SettingItem.Label>
         <SettingItem.Control style={{ minInlineSize: 0 }}>
-          <InputControl ref={ref} {...rest} />
+          <InputControl
+            ref={ref}
+            value={editable ? draft : value}
+            onChange={editable ? (event) => setDraft(event.currentTarget.value) : onChange}
+            {...rest}
+          />
         </SettingItem.Control>
       </SettingItem>
     );
@@ -262,13 +286,43 @@ export const SettingSelect = forwardRef<HTMLSelectElement, FieldProps & React.Se
 /** 多行文本行；默认纵向排列（orientation="vertical"），rows 控制高度 */
 export const SettingTextarea = forwardRef<HTMLTextAreaElement, FieldProps & React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
   function SettingTextarea(props, ref) {
-    const { label, description, error, disabled, size, orientation = 'vertical', id, ...rest } = props;
+    const { label, description, error, disabled, size, orientation = 'vertical', id, value, onChange, ...rest } = props;
+    const editable = value !== undefined && onChange === undefined;
+    const [draft, setDraft] = useDraftInput(value);
     return (
       <SettingItem size={size} orientation={orientation} error={error} disabled={disabled} controlId={id}>
         <SettingItem.Label description={description}>{label}</SettingItem.Label>
         <SettingItem.Control style={{ minInlineSize: 0 }}>
-          <TextareaControl ref={ref} {...rest} />
+          <TextareaControl
+            ref={ref}
+            value={editable ? draft : value}
+            onChange={editable ? (event) => setDraft(event.currentTarget.value) : onChange}
+            {...rest}
+          />
         </SettingItem.Control>
+      </SettingItem>
+    );
+  },
+);
+
+/**
+ * 说明块：以官方设置行样式展示静态说明（标题 + 正文），替代用禁用下拉/文本框占位的做法。
+ * 非表单控件（无 controlId 关联），默认纵向排列（标题在上、正文在下）。
+ */
+export const SettingNote = forwardRef<HTMLDivElement, FieldProps & React.HTMLAttributes<HTMLDivElement>>(
+  function SettingNote(props, ref) {
+    const { label, description, error, disabled, size, orientation = 'vertical', id, className, ...rest } = props;
+    return (
+      <SettingItem
+        ref={ref}
+        size={size}
+        orientation={orientation}
+        error={error}
+        disabled={disabled}
+        className={className}
+        {...rest}
+      >
+        <SettingItem.Label description={description}>{label}</SettingItem.Label>
       </SettingItem>
     );
   },

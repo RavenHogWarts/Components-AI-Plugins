@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AiApp, PluginManifest } from '@obsidian-components/ai-api';
-import { SettingsSection, SettingSelect, SettingText, type SettingsStore } from 'ai-plugin-kit';
+import { SettingNote, SettingsSection, SettingSelect, SettingText, type SettingsStore } from 'ai-plugin-kit';
 import { isEnabled, type PluginSettings } from './settings';
 import type { UsageTarget } from './providers';
 
@@ -101,17 +101,13 @@ export function AiUsageSettingsView(props: AiUsageViewProps) {
       </SettingsSection>
 
       <SettingsSection header="说明">
-        <SettingSelect label="支持的用量来源" disabled value="" onChange={() => undefined}>
-          <option value="">
-            GLM（open.bigmodel.cn / api.z.ai）· DeepSeek（api.deepseek.com）· Copilot（GitHub Copilot 连接）· Codex CLI
-          </option>
-        </SettingSelect>
-        <SettingText
+        <SettingNote
+          label="支持的用量来源"
+          description="GLM（open.bigmodel.cn / api.z.ai）· DeepSeek（api.deepseek.com）· Copilot（GitHub Copilot 连接）· Codex CLI"
+        />
+        <SettingNote
           label="凭据来源"
           description="GLM/DeepSeek 复用已配置模型连接的 API Key；Copilot 复用 GitHub Copilot 插件的授权；第三方代理连接不支持用量查询"
-          disabled
-          value=""
-          onChange={() => undefined}
         />
       </SettingsSection>
     </>
