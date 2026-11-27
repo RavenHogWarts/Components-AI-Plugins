@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { RefreshCw, Sparkles, Terminal, Wallet } from 'lucide-react';
+import { Github, RefreshCw, Sparkles, Terminal, Wallet } from 'lucide-react';
 import { Popover, formatClock, formatPercent, formatReset, type PollingStore, type SettingsStore } from 'ai-plugin-kit';
 import type { ProviderKind } from './providers';
 import type { PluginSettings } from './settings';
@@ -48,7 +48,9 @@ button:not(.clickable-icon).xdb--AiUsageRefresh:disabled{cursor:default;opacity:
 
 function IconOfKind(kind: ProviderKind) {
   if (kind === 'codex') return Terminal;
-  return kind === 'glm' ? Sparkles : Wallet;
+  if (kind === 'glm') return Sparkles;
+  if (kind === 'copilot') return Github;
+  return Wallet;
 }
 
 const KIND_PRIORITY: ReadonlyArray<'tokens' | 'credit' | 'tools' | 'other'> = ['tokens', 'credit', 'tools', 'other'];

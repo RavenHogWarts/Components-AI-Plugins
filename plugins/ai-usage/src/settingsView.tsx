@@ -102,11 +102,13 @@ export function AiUsageSettingsView(props: AiUsageViewProps) {
 
       <SettingsSection header="说明">
         <SettingSelect label="支持的用量来源" disabled value="" onChange={() => undefined}>
-          <option value="">GLM（open.bigmodel.cn / api.z.ai）· DeepSeek（api.deepseek.com）· Codex CLI</option>
+          <option value="">
+            GLM（open.bigmodel.cn / api.z.ai）· DeepSeek（api.deepseek.com）· Copilot（GitHub Copilot 连接）· Codex CLI
+          </option>
         </SettingSelect>
         <SettingText
           label="凭据来源"
-          description="复用应用中已配置模型连接的 API Key；第三方代理连接不支持用量查询"
+          description="GLM/DeepSeek 复用已配置模型连接的 API Key；Copilot 复用 GitHub Copilot 插件的授权；第三方代理连接不支持用量查询"
           disabled
           value=""
           onChange={() => undefined}

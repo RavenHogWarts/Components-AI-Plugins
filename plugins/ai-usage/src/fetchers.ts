@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { HttpClient, HttpResponse } from '@obsidian-components/ai-api';
-import { deepseekEndpoint, glmEndpoint, type UsageTarget } from './providers';
+import { COPILOT_USER_URL, deepseekEndpoint, glmEndpoint, type UsageTarget } from './providers';
 
 /** 归一化用量读数 */
 export interface UsageWindow {
@@ -186,6 +186,104 @@ export async function fetchDeepseekReading(http: HttpClient, target: UsageTarget
     windows: [],
     amounts,
     notice: record?.['is_available'] === false ? '账户当前不可用' : undefined,
+    fetchedAt: Date.now(),
+  };
+}
+
+// ===== Copilot =====
+
+interface CopilotQuota {
+  type: 'remaining' | 'creditsUsed';
+  category?: string;
+  percent: number;
+  credits?: number;
+  resetAt?: number;
+}
+
+/** 数字或数字字符串，且非负 */
+function nonnegativeNumber(value: unknown): number | undefined {
+  const numeric = typeof value === 'string' && value.trim() ? Number(value) : value;
+  return typeof numeric === 'number' && Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
+}
+
+/** 解析 ISO 日期字符串为时间戳 */
+function parseDate(value: unknown): number | undefined {
+  const timestamp = typeof value === 'string' ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+}
+
+/** 单个额度快照的剩余百分比（与 copilot 插件 parseCopilotQuota 一致） */
+function copilotRemaining(category: string, snapshot: unknown, resetAt: number | undefined): CopilotQuota | undefined {
+  const record = recordOf(snapshot);
+  if (!record || record['unlimited'] !== false || nonnegativeNumber(record['entitlement']) === 0) {
+    return undefined;
+  }
+  const percent = nonnegativeNumber(record['percent_remaining']);
+  if (percent === undefined || percent > 100) return undefined;
+  const resetTime = (nonnegativeNumber(record['quota_reset_at']) ?? 0) * 1000;
+  const snapshotReset = resetTime > 0 && Number.isFinite(new Date(resetTime).getTime());
+  return { type: 'remaining', category, percent, resetAt: snapshotReset ? resetTime : resetAt };
+}
+
+/** 解析 Copilot 用量响应（GitHub /copilot_internal/user），无可用额度返回 undefined */
+function parseCopilotQuota(payload: unknown): CopilotQuota | undefined {
+  const record = recordOf(payload);
+  if (!record) return undefined;
+  const resetAt = parseDate(record['quota_reset_date_utc']) ?? parseDate(record['quota_reset_date']);
+  const snapshots = recordOf(record['quota_snapshots']) ?? {};
+  const premium = snapshots['premium_interactions'];
+  const premiumQuota = copilotRemaining('premium', premium, resetAt);
+  if (premiumQuota) return premiumQuota;
+  const premiumRecord = recordOf(premium);
+  if (premiumRecord && premiumRecord['unlimited'] === true && premiumRecord['has_quota'] !== false) {
+    const credits = nonnegativeNumber(premiumRecord['credits_used']);
+    if (credits !== undefined) {
+      return { type: 'creditsUsed', percent: 0, credits, resetAt };
+    }
+  }
+  const chatQuota = copilotRemaining('chat', snapshots['chat'], resetAt);
+  if (chatQuota) return chatQuota;
+  const monthly = recordOf(record['monthly_quotas']);
+  const limited = recordOf(record['limited_user_quotas']);
+  const total = monthly ? nonnegativeNumber(monthly['chat']) : undefined;
+  const left = limited ? nonnegativeNumber(limited['chat']) : undefined;
+  if (total && left !== undefined && left <= total) {
+    return {
+      type: 'remaining',
+      category: 'chat',
+      percent: (left / total) * 100,
+      resetAt: resetAt ?? parseDate(record['limited_user_reset_date']),
+    };
+  }
+  return undefined;
+}
+
+/** 读取 GitHub Copilot 用量；accessToken 为 GitHub 访问令牌（来自 copilot 插件的 secretStorage） */
+export async function fetchCopilotReading(http: HttpClient, accessToken: string): Promise<Reading> {
+  const payload = await getJson(http, COPILOT_USER_URL, {
+    accept: 'application/json',
+    authorization: `token ${accessToken}`,
+  });
+  const record = recordOf(payload);
+  const quota = parseCopilotQuota(record);
+  if (!quota) throw new Error('Copilot 未返回额度信息');
+  const windows: UsageWindow[] = [];
+  const amounts: UsageAmount[] = [];
+  if (quota.type === 'remaining') {
+    windows.push({
+      label: quota.category === 'chat' ? 'Chat 剩余额度' : 'Premium 剩余额度',
+      kind: 'tokens',
+      usedPercent: clampPercent(100 - quota.percent),
+      resetsAt: quota.resetAt,
+    });
+  } else {
+    amounts.push({ label: '已用 AI Credits', text: `${quota.credits ?? 0}` });
+  }
+  return {
+    title: 'Copilot',
+    plan: stringOf(record?.['copilot_plan']),
+    windows,
+    amounts,
     fetchedAt: Date.now(),
   };
 }

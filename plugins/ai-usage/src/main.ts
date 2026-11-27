@@ -5,11 +5,12 @@ import { createReactView, mountSettingsView, PollingStore, SettingsStore } from 
 import {
   canSpawnProcesses,
   fetchCodexReading,
+  fetchCopilotReading,
   fetchDeepseekReading,
   fetchGlmReading,
   probeCodex,
 } from './fetchers';
-import { classifyConnections, codexTarget, type UsageTarget } from './providers';
+import { classifyConnections, codexTarget, COPILOT_TOKEN_SECRET, type UsageTarget } from './providers';
 import { isEnabled, loadSettings, type FooterPosition, type PluginSettings } from './settings';
 import { AiUsageSettingsView } from './settingsView';
 import type { ProviderStatus } from './store';
@@ -39,7 +40,9 @@ function failureMessage(error: unknown, target: UsageTarget): string {
       ? '请检查该连接的 GLM API Key'
       : target.kind === 'deepseek'
         ? '请检查该连接的 DeepSeek API Key'
-        : '请先安装并运行 codex login';
+        : target.kind === 'copilot'
+          ? '请先在 GitHub Copilot 插件中完成授权'
+          : '请先安装并运行 codex login';
   if (status === 401 || status === 403) return `认证失败（HTTP ${status}）：${hint}`;
   return error instanceof Error ? error.message : String(error);
 }
@@ -56,6 +59,20 @@ export default class AiUsagePlugin extends Plugin {
     const { api } = this;
     const app = api.app;
     const modelProviderManager = this.dependencies['modelProviderManager'] as ModelProviderManager;
+
+    // Copilot 用量凭据由 copilot 插件写入 Obsidian secretStorage（可选服务）
+    const obsidianApp = api.getService('obsidianApp') as
+      | { secretStorage?: { getSecret?(key: string): string | null } }
+      | undefined;
+    const readCopilotToken = (): string => {
+      const token = obsidianApp?.secretStorage?.getSecret?.(COPILOT_TOKEN_SECRET);
+      return typeof token === 'string' && token.trim() ? token.trim() : '';
+    };
+    const requireCopilotToken = (): string => {
+      const token = readCopilotToken();
+      if (!token) throw new Error('请先在 GitHub Copilot 插件中完成授权');
+      return token;
+    };
 
     this.settingsStore = new SettingsStore(api, loadSettings(await api.readData()), loadSettings);
     const settingsStore = this.settingsStore;
@@ -94,7 +111,9 @@ export default class AiUsagePlugin extends Plugin {
                 ? await fetchGlmReading(app.httpClient, target)
                 : target.kind === 'deepseek'
                   ? await fetchDeepseekReading(app.httpClient, target)
-                  : await fetchCodexReading(settings.codexCommandPath);
+                  : target.kind === 'copilot'
+                    ? await fetchCopilotReading(app.httpClient, requireCopilotToken())
+                    : await fetchCodexReading(settings.codexCommandPath);
             return { ...base, result: { type: 'ok', reading } };
           } catch (error) {
             return { ...base, result: { type: 'error', message: failureMessage(error, target) } };
