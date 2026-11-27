@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "turn-loading-style",
   "description": "自定义对话处理中的加载动画与提示文字",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "extensions": {
     "xdb-ai": {},
     "io.github.vran-dev.xdb": {

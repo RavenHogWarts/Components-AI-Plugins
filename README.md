@@ -113,17 +113,17 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 ## 已发布插件
 
 <!-- PLUGIN-LIST:START -->
-### agents-md（v0.2.0）
+### agents-md（v0.2.1）
 
 自动读取仓库根目录的 AGENTS.md 作为项目工作指南，在 Agent 执行仓库任务前注入模型上下文。
 
-[![下载 agents-md-v0.2.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=agents-md-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/agents-md-v0.2.0/agents-md-v0.2.0.zip)
+[![下载 agents-md-v0.2.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=agents-md-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/agents-md-v0.2.1/agents-md-v0.2.1.zip)
 
-### ai-usage（v0.3.3）
+### ai-usage（v0.4.0）
 
 监控已配置模型的用量（GLM/DeepSeek/Codex CLI/GitHub Copilot），支持正向/逆向显示与按模型开关
 
-[![下载 ai-usage-v0.3.3.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=ai-usage-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/ai-usage-v0.3.3/ai-usage-v0.3.3.zip)
+[![下载 ai-usage-v0.4.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=ai-usage-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/ai-usage-v0.4.0/ai-usage-v0.4.0.zip)
 
 ### dev-hot-reload（v0.1.0）
 
@@ -131,23 +131,23 @@ Conventional Commits（`feat` / `fix` / `chore` / `docs` / `build` / `refactor`�
 
 [![下载 dev-hot-reload-v0.1.0.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=dev-hot-reload-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/dev-hot-reload-v0.1.0/dev-hot-reload-v0.1.0.zip)
 
-### live-session-title（v0.2.1）
+### live-session-title（v0.2.2）
 
 根据对话最新内容持续更新会话标题；支持按会话 ID、标题正则、Agent 名单排除，可配置标题模型与提示词。
 
-[![下载 live-session-title-v0.2.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=live-session-title-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/live-session-title-v0.2.1/live-session-title-v0.2.1.zip)
+[![下载 live-session-title-v0.2.2.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=live-session-title-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/live-session-title-v0.2.2/live-session-title-v0.2.2.zip)
 
-### session-toc（v0.1.1）
+### session-toc（v0.1.2）
 
 在对话窗口侧边提供会话内目录（TOC）：悬浮预览各轮次用户输入内容，点击快速滚动跳转到对应轮次。
 
-[![下载 session-toc-v0.1.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=session-toc-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/session-toc-v0.1.1/session-toc-v0.1.1.zip)
+[![下载 session-toc-v0.1.2.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=session-toc-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/session-toc-v0.1.2/session-toc-v0.1.2.zip)
 
-### turn-loading-style（v0.2.1）
+### turn-loading-style（v0.2.2）
 
 自定义对话处理中的加载动画与提示文字
 
-[![下载 turn-loading-style-v0.2.1.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=turn-loading-style-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/turn-loading-style-v0.2.1/turn-loading-style-v0.2.1.zip)
+[![下载 turn-loading-style-v0.2.2.zip](https://img.shields.io/github/v/release/RavenHogWarts/Components-AI-Plugins?filter=turn-loading-style-v*&label=%E4%B8%8B%E8%BD%BD)](https://github.com/RavenHogWarts/Components-AI-Plugins/releases/download/turn-loading-style-v0.2.2/turn-loading-style-v0.2.2.zip)
 
 ### workspace-management（v0.3.1）
 
